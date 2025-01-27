@@ -324,8 +324,8 @@ int main(int argc, char * argv[]) {
     CustomModel testCustom(customDebug);
 
     // Cloth mesh
-    //ClothMesh cloth(10.0f, 10.0f, 20, 12);
-    ClothMesh cloth(5.0f, 5.0f, 2, 2);
+    ClothMesh cloth(10.0f, 10.0f, 20, 12);
+    //ClothMesh cloth(5.0f, 5.0f, 2, 2);
 
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false)

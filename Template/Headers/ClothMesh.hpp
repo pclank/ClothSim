@@ -7,7 +7,8 @@
 struct ClothMesh {
 	float width, depth, widthStep, depthStep;
 	std::vector<glm::vec3> vertices, initVertices;
-	unsigned int VAO, VBO;
+	std::vector<unsigned int> indices;
+	unsigned int VAO, VBO, EBO;
 
 	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, float initHeight = 2.0f)
 		:
@@ -17,41 +18,55 @@ struct ClothMesh {
 		float d2 = depth * 0.5f;
 
 		// calculate the steps for each quad / tri
-		float wStep = width / wP;
-		float dStep = depth / dP;
+		float widthStep = width / wP;
+		float depthStep = depth / dP;
 
-		for (float d = -d2; d < d2; d += dStep)
-			for (float w = -w2; w < w2; w += wStep)
+		for (float d = -d2; d < d2; d += depthStep)
+			for (float w = -w2; w < w2; w += widthStep)
 			{
 				glm::vec3 tempVertex;
 
 				tempVertex.y = initHeight;
 
+				unsigned int indexStart = vertices.size();
+
 				// Define first triangle
 				tempVertex.x = w;
-				tempVertex.z = d + dStep;
+				tempVertex.z = d + depthStep;
 				vertices.push_back(tempVertex);
+				indices.push_back(indexStart++);
 				
-				tempVertex.x = w + wStep;
-				tempVertex.z = d + dStep;
+				tempVertex.x = w + widthStep;
+				tempVertex.z = d + depthStep;
 				vertices.push_back(tempVertex);
-				
+				indices.push_back(indexStart++);
+
 				tempVertex.x = w;
 				tempVertex.z = d;
 				vertices.push_back(tempVertex);
+				indices.push_back(indexStart++);
 
 				// Define second triangle
-				tempVertex.x = w + wStep;
-				tempVertex.z = d + dStep;
+				indices.push_back(indices[indices.size() - 2]);
+
+				tempVertex.x = w + widthStep;
+				tempVertex.z = d;
+				vertices.push_back(tempVertex);
+				indices.push_back(indexStart);
+
+				indices.push_back(indices[indices.size() - 3]);
+
+				/*tempVertex.x = w + widthStep;
+				tempVertex.z = d + depthStep;
 				vertices.push_back(tempVertex);
 
-				tempVertex.x = w + wStep;
+				tempVertex.x = w + widthStep;
 				tempVertex.z = d;
 				vertices.push_back(tempVertex);
 
 				tempVertex.x = w;
 				tempVertex.z = d;
-				vertices.push_back(tempVertex);
+				vertices.push_back(tempVertex);*/
 			}
 
 		// Store initial positions
@@ -60,13 +75,17 @@ struct ClothMesh {
 		for (size_t i = 0; i < initVertices.size(); i++)
 			std::cout << initVertices[i].x << " | " << initVertices[i].y << " | " << initVertices[i].z << std::endl;
 
-		// Set up Vertex array and buffer
+		// Set up buffers
 		glGenVertexArrays(1, &VAO);
 		glGenBuffers(1, &VBO);
+		glGenBuffers(1, &EBO);
 
 		glBindVertexArray(VAO);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 		glEnableVertexAttribArray(0);
@@ -75,7 +94,7 @@ struct ClothMesh {
 
 		glBindVertexArray(0);
 
-		std::cout << "Created cloth mesh with " << vertices.size() << " vertices" << std::endl;
+		//std::cout << "Created cloth mesh with " << vertices.size() << " vertices" << std::endl;
 	}
 
 	void UpdateVertices(float time)
@@ -98,7 +117,8 @@ struct ClothMesh {
 
 		glBindVertexArray(VAO);
 
-		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
 		glBindVertexArray(0);
 
