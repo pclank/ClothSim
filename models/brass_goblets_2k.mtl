@@ -1,0 +1,35 @@
+# Blender 4.2.3 LTS MTL File: 'brass_goblets_2k.blend'
+# www.blender.org
+
+newmtl brass_goblets_01
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd brass_goblet_01_diff_2k.png
+map_Ns brass_goblet_01_rough_2k.png
+map_Bump -bm 1.000000 brass_goblet_01_nor_gl_2k.png
+
+newmtl brass_goblets_02
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd brass_goblet_02_diff_2k.png
+map_Ns brass_goblet_02_rough_2k.png
+map_Bump -bm 1.000000 brass_goblet_02_nor_gl_2k.png
+
+newmtl brass_goblets_03
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd brass_goblet_03_diff_2k.png
+map_Ns brass_goblet_03_rough_2k.png
+map_Bump -bm 1.000000 brass_goblet_03_nor_gl_2k.png
