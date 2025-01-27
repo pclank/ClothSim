@@ -8,6 +8,7 @@
 #include <ShadowMap.hpp>
 #include <ShadowCubemap.hpp>
 #include <CustomModel.hpp>
+#include <ClothMesh.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -322,6 +323,10 @@ int main(int argc, char * argv[]) {
     // Custom model
     CustomModel testCustom(customDebug);
 
+    // Cloth mesh
+    //ClothMesh cloth(10.0f, 10.0f, 20, 12);
+    ClothMesh cloth(5.0f, 5.0f, 2, 2);
+
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false)
     {
@@ -378,6 +383,10 @@ int main(int argc, char * argv[]) {
         customModelShader.setMat4("projection", projection);
         customModelShader.setMat4("view", view);
         testCustom.Render(customModelShader, glm::mat4(1.0f));
+
+        // Render cloth
+        //cloth.UpdateVertices(currentFrame);
+        cloth.Render(customModelShader, glm::mat4(1.0f));
 
         lightingShader.use();
         lightingShader.setMat4("projection", projection);

@@ -1,0 +1,107 @@
+#pragma once
+
+#include <Shader.hpp>
+#include <vector>
+#include <glm/glm.hpp>
+
+struct ClothMesh {
+	float width, depth, widthStep, depthStep;
+	std::vector<glm::vec3> vertices, initVertices;
+	unsigned int VAO, VBO;
+
+	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, float initHeight = 2.0f)
+		:
+		width(width), depth(depth)
+	{
+		float w2 = width * 0.5f;
+		float d2 = depth * 0.5f;
+
+		// calculate the steps for each quad / tri
+		float wStep = width / wP;
+		float dStep = depth / dP;
+
+		for (float d = -d2; d < d2; d += dStep)
+			for (float w = -w2; w < w2; w += wStep)
+			{
+				glm::vec3 tempVertex;
+
+				tempVertex.y = initHeight;
+
+				// Define first triangle
+				tempVertex.x = w;
+				tempVertex.z = d + dStep;
+				vertices.push_back(tempVertex);
+				
+				tempVertex.x = w + wStep;
+				tempVertex.z = d + dStep;
+				vertices.push_back(tempVertex);
+				
+				tempVertex.x = w;
+				tempVertex.z = d;
+				vertices.push_back(tempVertex);
+
+				// Define second triangle
+				tempVertex.x = w + wStep;
+				tempVertex.z = d + dStep;
+				vertices.push_back(tempVertex);
+
+				tempVertex.x = w + wStep;
+				tempVertex.z = d;
+				vertices.push_back(tempVertex);
+
+				tempVertex.x = w;
+				tempVertex.z = d;
+				vertices.push_back(tempVertex);
+			}
+
+		// Store initial positions
+		initVertices = std::vector<glm::vec3>(vertices);
+
+		for (size_t i = 0; i < initVertices.size(); i++)
+			std::cout << initVertices[i].x << " | " << initVertices[i].y << " | " << initVertices[i].z << std::endl;
+
+		// Set up Vertex array and buffer
+		glGenVertexArrays(1, &VAO);
+		glGenBuffers(1, &VBO);
+
+		glBindVertexArray(VAO);
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
+
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(0);
+
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		glBindVertexArray(0);
+
+		std::cout << "Created cloth mesh with " << vertices.size() << " vertices" << std::endl;
+	}
+
+	void UpdateVertices(float time)
+	{
+		for (size_t i = 0; i < vertices.size(); i += 3)
+		{
+			vertices[i].y = initVertices[i].y + glm::cos(time) * 0.001f;
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
+	}
+
+	void Render(Shader& shader, glm::mat4 model)
+	{
+		shader.use();
+		shader.setMat4("model", model);
+
+		glDisable(GL_CULL_FACE);
+
+		glBindVertexArray(VAO);
+
+		glDrawArrays(GL_TRIANGLES, 0, vertices.size());
+
+		glBindVertexArray(0);
+
+		glEnable(GL_CULL_FACE);
+	}
+};
