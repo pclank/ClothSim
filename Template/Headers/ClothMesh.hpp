@@ -21,109 +21,40 @@ struct ClothMesh {
 		float widthStep = width / wP;
 		float depthStep = depth / dP;
 
-		for (float d = -d2; d < d2; d += depthStep)
-			for (float w = -w2; w < w2; w += widthStep)
+		unsigned int gridRes = 3;
+
+		// Calculate vertices
+		unsigned int dI = 0;
+		//for (float d = 0.0f; d < width; d += depthStep)
+		for (float d = 0.0f; dI < gridRes; d += depthStep, dI++)
+		{
+			unsigned int wI = 0;
+			for (float w = 0.0f; wI < gridRes; w += widthStep, wI++)
 			{
 				glm::vec3 tempVertex;
 
 				tempVertex.y = initHeight;
 
-				unsigned int indexStart = vertices.size();
-
-				tempVertex.x = w;
-				tempVertex.z = d + depthStep;
-				vertices.push_back(tempVertex);
-				indices.push_back(indexStart++);
-
-				tempVertex.x = w + widthStep;
-				tempVertex.z = d + depthStep;
-				vertices.push_back(tempVertex);
-				indices.push_back(indexStart++);
-
-				tempVertex.x = w + widthStep;
-				tempVertex.z = d;
-				vertices.push_back(tempVertex);
-				indices.push_back(indexStart++);
-
 				tempVertex.x = w;
 				tempVertex.z = d;
 				vertices.push_back(tempVertex);
-				indices.push_back(indexStart);
-
-				//// Define first triangle
-				//tempVertex.x = w;
-				//tempVertex.z = d + depthStep;
-				//vertices.push_back(tempVertex);
-				//indices.push_back(indexStart++);
-				//
-				//tempVertex.x = w + widthStep;
-				//tempVertex.z = d + depthStep;
-				//vertices.push_back(tempVertex);
-				//indices.push_back(indexStart++);
-
-				//tempVertex.x = w;
-				//tempVertex.z = d;
-				//vertices.push_back(tempVertex);
-				//indices.push_back(indexStart++);
-
-				//// Define second triangle
-				//indices.push_back(indices[indices.size() - 2]);
-
-				//tempVertex.x = w + widthStep;
-				//tempVertex.z = d;
-				//vertices.push_back(tempVertex);
-				//indices.push_back(indexStart);
-
-				//indices.push_back(indices[indices.size() - 3]);
-
-				/*tempVertex.x = w + widthStep;
-				tempVertex.z = d + depthStep;
-				vertices.push_back(tempVertex);
-
-				tempVertex.x = w + widthStep;
-				tempVertex.z = d;
-				vertices.push_back(tempVertex);
-
-				tempVertex.x = w;
-				tempVertex.z = d;
-				vertices.push_back(tempVertex);*/
-			}
-
-		// Clean up duplicates
-		std::vector<glm::vec3> vertCopy = std::vector<glm::vec3>(vertices);
-		std::vector<std::pair<unsigned int, unsigned int>> duplicateIndices;	// [correct_index, duplicate_index]
-		for (size_t i = 0; i < vertCopy.size() - 1; i++)
-		{
-			// Search for duplicates
-			for (size_t j = i + 1; j < vertCopy.size(); j++)
-				if (vertCopy[i] == vertCopy[j])
-					duplicateIndices.push_back(std::pair<unsigned int, unsigned int>(i, j));
-		}
-
-		for (size_t i = 0; i < vertCopy.size() - 1; i++)
-		{
-			// Search for duplicates
-			for (size_t j = i + 1; j < vertCopy.size(); j++)
-				if (vertCopy[i] == vertCopy[j])
-					vertCopy.erase(vertCopy.begin() + j);			// Erase duplicate from vertices
-		}
-
-		for (size_t i = 0; i < duplicateIndices.size(); i++)
-		{
-			// Fix indices
-			for (size_t j = 0; j < indices.size(); j++)
-			{
-				if (indices[j] == duplicateIndices[i].second)
-				{
-					std::cout << indices[j] << " -> " << duplicateIndices[i].first << std::endl;
-					indices[j] = duplicateIndices[i].first;
-
-					//for (size_t k = 0;)
-				}
 			}
 		}
 
-		vertices = std::vector<glm::vec3>(vertCopy);
+		// Calculate indices
+		unsigned int indexStart = 0;
+		for (size_t i = 0; i < (gridRes - 1) * (gridRes - 1); i++)
+		{
+			if (i != 0 && i % (gridRes - 1) == 0)
+				indexStart++;
+
+			indices.push_back(indexStart);
+			indices.push_back(indexStart + 1);
+			indices.push_back(indexStart + 4);
+			indices.push_back(indexStart + 3);
+
+			indexStart++;
+		}
 
 		// Store initial positions
 		initVertices = std::vector<glm::vec3>(vertices);
