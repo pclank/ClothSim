@@ -36,7 +36,8 @@ ShadowCubemap::ShadowCubemap(Shader& shader, Shader& debugShader, const unsigned
 ShadowCubemap::~ShadowCubemap()
 {}
 
-void ShadowCubemap::Render(float* lightPos, std::vector<Model>& models, const int nModels, GUI& gui, CustomModel* customModel)
+void ShadowCubemap::Render(float* lightPos, std::vector<Model>& models, const int nModels, GUI& gui, CustomModel* customModel,
+    ClothMesh* clothMesh)
 {
     // Switch to proper viewport and bind framebuffer
     //glCullFace(GL_FRONT);
@@ -61,6 +62,10 @@ void ShadowCubemap::Render(float* lightPos, std::vector<Model>& models, const in
         //customModel->Render(shader, gui.customModelSettings.GetModelMatrix());
         customModel->Render(shader, glm::mat4(1.0f));
     }
+
+    // TODO: Add gui control!
+    if (clothMesh != nullptr)
+        customModel->Render(shader, glm::mat4(1.0f));
 
     //glCullFace(GL_BACK);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

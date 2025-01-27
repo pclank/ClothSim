@@ -4,10 +4,20 @@
 #include <vector>
 #include <glm/glm.hpp>
 
+#define GRAVITY 0.003f
+#define VERLET_STEPS 3
+#define CONSTRAINT_STEPS 4
+
+const glm::vec3 gravity(0.0f, -GRAVITY, 0.0f);
+
+const int xOffsets[4] = { 1, -1, 0, 0 };
+const int yOffsets[4] = { 0, 0, 1, -1 };
+
 struct ClothMesh {
 	float width, depth, widthStep, depthStep;
-	std::vector<glm::vec3> vertices, initVertices;
+	std::vector<glm::vec3> vertices, preVertices;
 	std::vector<unsigned int> indices;
+	std::vector<float> restLengths;					// 4 (except edges) initial distances to neigthbors
 	unsigned int VAO, VBO, EBO;
 	unsigned int gridRes;
 
@@ -53,10 +63,10 @@ struct ClothMesh {
 		}
 
 		// Store initial positions
-		initVertices = std::vector<glm::vec3>(vertices);
+		preVertices = std::vector<glm::vec3>(vertices);
 
-		/*for (size_t i = 0; i < initVertices.size(); i++)
-			std::cout << initVertices[i].x << " | " << initVertices[i].y << " | " << initVertices[i].z << std::endl;*/
+		/*for (size_t i = 0; i < preVertices.size(); i++)
+			std::cout << preVertices[i].x << " | " << preVertices[i].y << " | " << preVertices[i].z << std::endl;*/
 
 		// Set up buffers
 		glGenVertexArrays(1, &VAO);
@@ -77,15 +87,50 @@ struct ClothMesh {
 
 		glBindVertexArray(0);
 
+		// Calculate rest length
+		for (size_t y = 1; y < gridRes - 1; y++)
+			for (size_t x = 1; x < gridRes - 1; x++)
+			{
+				// 15% slack
+				for (int c = 0; c < 4; c++)
+				{
+					glm::length(vertices[x + y * gridRes] - vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes]) * 1.15f;
+				}
+			}
+
 		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << indices.size() << " indices" << std::endl;
+	}
+
+	~ClothMesh()
+	{}
+
+	inline void ApplyGravity(float dt)
+	{
+		for (size_t y = 1; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				const glm::vec3 currentPos = vertices[x + y * gridRes];
+				const glm::vec3 prevPos = preVertices[x + y * gridRes];
+
+				vertices[x + y * gridRes] += (currentPos - prevPos) + gravity * dt;
+
+				preVertices[x + y * gridRes] = currentPos;
+
+				// if (Rand( 10 ) < 0.03f) grid( x, y ).pos += float2( Rand( 0.02f + magic ), Rand( 0.12f ) );
+			}
+	}
+
+	inline void ApplyConstraints(float dt)
+	{
+
 	}
 
 	void UpdateVertices(float time)
 	{
-		for (size_t i = 0; i < vertices.size(); i += 3)
+		/*for (size_t i = 0; i < vertices.size(); i += 3)
 		{
-			vertices[i].y = initVertices[i].y + glm::cos(time);
-		}
+			vertices[i].y = preVertices[i].y + glm::cos(time);
+		}*/
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
 		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);

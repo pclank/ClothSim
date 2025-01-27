@@ -44,8 +44,8 @@ void GUI::Render()
 
     ImGui::ColorEdit3("Base color", (float*)m_sceneSettings.base_color);
     ImGui::ColorEdit3("Manual light color", (float*)m_sceneSettings.light_color);
-    ImGui::SliderFloat3("Light position", m_sceneSettings.light_position, -5.0f, 5.0f);
-    ImGui::SliderFloat3("Point light position", m_sceneSettings.point_light_position, -5.0f, 5.0f);
+    ImGui::SliderFloat3("Light position", m_sceneSettings.light_position, -10.0f, 25.0f);
+    ImGui::SliderFloat3("Point light position", m_sceneSettings.point_light_position, -10.0f, 25.0f);
     ImGui::SliderFloat("Manual min bias", &m_sceneSettings.manual_min_bias, 0.0f, 1.0f);
     ImGui::SliderFloat("Manual max bias", &m_sceneSettings.manual_max_bias, 0.0f, 1.0f);
     ImGui::SliderFloat("Manual bias", &m_sceneSettings.manual_bias, 0.0f, 1.0f);

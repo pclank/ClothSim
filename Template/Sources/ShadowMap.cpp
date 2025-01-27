@@ -32,7 +32,7 @@ ShadowMap::~ShadowMap()
 {}
 
 void ShadowMap::Render(float* lightPos, glm::mat4& lightProjection, std::vector<Model>& models, const int nModels, GUI& gui,
-    CustomModel* customModel)
+    CustomModel* customModel, ClothMesh* clothMesh)
 {
     // Render to depth map
     glCullFace(GL_FRONT);
@@ -52,6 +52,10 @@ void ShadowMap::Render(float* lightPos, glm::mat4& lightProjection, std::vector<
         //customModel->Render(shader, gui.customModelSettings.GetModelMatrix());
         customModel->Render(shader, glm::mat4(1.0f));
     }
+
+    // TODO: Add gui control!
+    if (clothMesh != nullptr)
+        customModel->Render(shader, glm::mat4(1.0f));
 
     glCullFace(GL_BACK);
 }

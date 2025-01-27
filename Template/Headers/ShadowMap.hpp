@@ -7,6 +7,7 @@
 #include <Model.hpp>
 #include <GUI.hpp>
 #include <CustomModel.hpp>
+#include <ClothMesh.hpp>
 #include <vector>
 
 static const float debugQuadVertices[] = {
@@ -52,7 +53,7 @@ public:
 	~ShadowMap();
 
 	void Render(float* lightPos, glm::mat4& lightProjection, std::vector<Model>& models, const int nModels, GUI& gui,
-        CustomModel* customModel = nullptr);
+        CustomModel* customModel = nullptr, ClothMesh* clothMesh = nullptr);
 
 	void Debug();
 

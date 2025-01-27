@@ -7,6 +7,7 @@
 #include <Model.hpp>
 #include <GUI.hpp>
 #include <CustomModel.hpp>
+#include <ClothMesh.hpp>
 #include <vector>
 
 class ShadowCubemap {
@@ -22,7 +23,8 @@ public:
 
 	~ShadowCubemap();
 
-	void Render(float* lightPos, std::vector<Model>& models, const int nModels, GUI& gui, CustomModel* customModel = nullptr);
+	void Render(float* lightPos, std::vector<Model>& models, const int nModels, GUI& gui, CustomModel* customModel = nullptr,
+		ClothMesh* clothMesh = nullptr);
 
     void GetLightSpaceMatrices(float* lightPos, std::vector<glm::mat4>& lightTransformMatrices);
 };

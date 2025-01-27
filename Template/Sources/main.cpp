@@ -347,12 +347,11 @@ int main(int argc, char * argv[]) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Render to depth map
-        //shadow.Render(settings.light_position, glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, shadow.nearPlane, shadow.farPlane), models, nModels, gui);
         shadow.Render(settings.light_position, glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, shadow.nearPlane, shadow.farPlane), models, nModels, gui,
-            &testCustom);
+            &testCustom, &cloth);
 
         // Render to omnidirectional depth map
-        shadowCubemap.Render(settings.point_light_position, models, nModels, gui, &testCustom);
+        shadowCubemap.Render(settings.point_light_position, models, nModels, gui, &testCustom, &cloth);
 
         // Switch to regular framebuffer
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -384,7 +383,8 @@ int main(int argc, char * argv[]) {
         testCustom.Render(customModelShader, glm::mat4(1.0f));
 
         // Render cloth
-        //cloth.UpdateVertices(currentFrame);
+        cloth.ApplyGravity(static_cast<float>(timer.GetData().DeltaTime));
+        cloth.UpdateVertices(currentFrame);
         cloth.Render(customModelShader, glm::mat4(1.0f));
 
         lightingShader.use();
