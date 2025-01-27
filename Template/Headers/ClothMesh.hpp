@@ -30,31 +30,51 @@ struct ClothMesh {
 
 				unsigned int indexStart = vertices.size();
 
-				// Define first triangle
 				tempVertex.x = w;
 				tempVertex.z = d + depthStep;
 				vertices.push_back(tempVertex);
 				indices.push_back(indexStart++);
-				
+
 				tempVertex.x = w + widthStep;
 				tempVertex.z = d + depthStep;
 				vertices.push_back(tempVertex);
 				indices.push_back(indexStart++);
 
-				tempVertex.x = w;
+				tempVertex.x = w + widthStep;
 				tempVertex.z = d;
 				vertices.push_back(tempVertex);
 				indices.push_back(indexStart++);
 
-				// Define second triangle
-				indices.push_back(indices[indices.size() - 2]);
-
-				tempVertex.x = w + widthStep;
+				tempVertex.x = w;
 				tempVertex.z = d;
 				vertices.push_back(tempVertex);
 				indices.push_back(indexStart);
 
-				indices.push_back(indices[indices.size() - 3]);
+				//// Define first triangle
+				//tempVertex.x = w;
+				//tempVertex.z = d + depthStep;
+				//vertices.push_back(tempVertex);
+				//indices.push_back(indexStart++);
+				//
+				//tempVertex.x = w + widthStep;
+				//tempVertex.z = d + depthStep;
+				//vertices.push_back(tempVertex);
+				//indices.push_back(indexStart++);
+
+				//tempVertex.x = w;
+				//tempVertex.z = d;
+				//vertices.push_back(tempVertex);
+				//indices.push_back(indexStart++);
+
+				//// Define second triangle
+				//indices.push_back(indices[indices.size() - 2]);
+
+				//tempVertex.x = w + widthStep;
+				//tempVertex.z = d;
+				//vertices.push_back(tempVertex);
+				//indices.push_back(indexStart);
+
+				//indices.push_back(indices[indices.size() - 3]);
 
 				/*tempVertex.x = w + widthStep;
 				tempVertex.z = d + depthStep;
@@ -69,11 +89,47 @@ struct ClothMesh {
 				vertices.push_back(tempVertex);*/
 			}
 
+		// Clean up duplicates
+		std::vector<glm::vec3> vertCopy = std::vector<glm::vec3>(vertices);
+		std::vector<std::pair<unsigned int, unsigned int>> duplicateIndices;	// [correct_index, duplicate_index]
+		for (size_t i = 0; i < vertCopy.size() - 1; i++)
+		{
+			// Search for duplicates
+			for (size_t j = i + 1; j < vertCopy.size(); j++)
+				if (vertCopy[i] == vertCopy[j])
+					duplicateIndices.push_back(std::pair<unsigned int, unsigned int>(i, j));
+		}
+
+		for (size_t i = 0; i < vertCopy.size() - 1; i++)
+		{
+			// Search for duplicates
+			for (size_t j = i + 1; j < vertCopy.size(); j++)
+				if (vertCopy[i] == vertCopy[j])
+					vertCopy.erase(vertCopy.begin() + j);			// Erase duplicate from vertices
+		}
+
+		for (size_t i = 0; i < duplicateIndices.size(); i++)
+		{
+			// Fix indices
+			for (size_t j = 0; j < indices.size(); j++)
+			{
+				if (indices[j] == duplicateIndices[i].second)
+				{
+					std::cout << indices[j] << " -> " << duplicateIndices[i].first << std::endl;
+					indices[j] = duplicateIndices[i].first;
+
+					//for (size_t k = 0;)
+				}
+			}
+		}
+
+		vertices = std::vector<glm::vec3>(vertCopy);
+
 		// Store initial positions
 		initVertices = std::vector<glm::vec3>(vertices);
 
-		for (size_t i = 0; i < initVertices.size(); i++)
-			std::cout << initVertices[i].x << " | " << initVertices[i].y << " | " << initVertices[i].z << std::endl;
+		/*for (size_t i = 0; i < initVertices.size(); i++)
+			std::cout << initVertices[i].x << " | " << initVertices[i].y << " | " << initVertices[i].z << std::endl;*/
 
 		// Set up buffers
 		glGenVertexArrays(1, &VAO);
@@ -94,14 +150,14 @@ struct ClothMesh {
 
 		glBindVertexArray(0);
 
-		//std::cout << "Created cloth mesh with " << vertices.size() << " vertices" << std::endl;
+		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << indices.size() << " indices" << std::endl;
 	}
 
 	void UpdateVertices(float time)
 	{
 		for (size_t i = 0; i < vertices.size(); i += 3)
 		{
-			vertices[i].y = initVertices[i].y + glm::cos(time) * 0.001f;
+			vertices[i].y = initVertices[i].y + glm::cos(time);
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -118,7 +174,8 @@ struct ClothMesh {
 		glBindVertexArray(VAO);
 
 		//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-		glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+		//glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLE_FAN, indices.size(), GL_UNSIGNED_INT, 0);
 
 		glBindVertexArray(0);
 
