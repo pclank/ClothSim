@@ -9,19 +9,15 @@ struct ClothMesh {
 	std::vector<glm::vec3> vertices, initVertices;
 	std::vector<unsigned int> indices;
 	unsigned int VAO, VBO, EBO;
+	unsigned int gridRes;
 
-	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, float initHeight = 2.0f)
+	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, unsigned int gridRes, float initHeight = 2.0f)
 		:
-		width(width), depth(depth)
+		width(width), depth(depth), gridRes(gridRes)
 	{
-		float w2 = width * 0.5f;
-		float d2 = depth * 0.5f;
-
-		// calculate the steps for each quad / tri
-		float widthStep = width / wP;
-		float depthStep = depth / dP;
-
-		unsigned int gridRes = 3;
+		// calculate the steps for each quad
+		widthStep = width / wP;
+		depthStep = depth / dP;
 
 		// Calculate vertices
 		unsigned int dI = 0;
@@ -50,8 +46,8 @@ struct ClothMesh {
 
 			indices.push_back(indexStart);
 			indices.push_back(indexStart + 1);
-			indices.push_back(indexStart + 4);
-			indices.push_back(indexStart + 3);
+			indices.push_back(indexStart + gridRes + 1);
+			indices.push_back(indexStart + gridRes);
 
 			indexStart++;
 		}
