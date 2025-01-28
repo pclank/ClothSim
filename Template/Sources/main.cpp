@@ -385,7 +385,7 @@ int main(int argc, char * argv[]) {
         // Render cloth
         if (settings.run_sim)
         {
-            cloth.Simulate(static_cast<float>(timer.GetData().DeltaTime));
+            cloth.Simulate(static_cast<float>(timer.GetData().DeltaTime) * settings.sim_speed);
             cloth.UpdateVertices(currentFrame);
         }
         cloth.Render(customModelShader, glm::mat4(1.0f));
