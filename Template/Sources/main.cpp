@@ -383,8 +383,11 @@ int main(int argc, char * argv[]) {
         testCustom.Render(customModelShader, glm::mat4(1.0f));
 
         // Render cloth
-        cloth.Simulate(static_cast<float>(timer.GetData().DeltaTime));
-        cloth.UpdateVertices(currentFrame);
+        if (settings.run_sim)
+        {
+            cloth.Simulate(static_cast<float>(timer.GetData().DeltaTime));
+            cloth.UpdateVertices(currentFrame);
+        }
         cloth.Render(customModelShader, glm::mat4(1.0f));
 
         lightingShader.use();
@@ -471,6 +474,11 @@ void ProcessInput(GLFWwindow* window)
 
     if (!spacebar_down && glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
         spacebar_down = true;
+
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+    {
+        settings.run_sim = !settings.run_sim;
+    }
 }
 
 void MouseMovementCallback(GLFWwindow* window, double x_pos, double y_pos)

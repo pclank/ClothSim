@@ -59,6 +59,11 @@ void GUI::Render()
         GuiButtonCallback(GUI_BUTTON::CAMERA_MODE_TOGGLE);
 
     ImGui::Separator();
+    ImGui::Text("Simulation settings");
+    ImGui::SliderFloat("Speed", &m_sceneSettings.sim_speed, 0.01f, 1.0f, "%.2f");
+    ImGui::Checkbox("Play", &m_sceneSettings.run_sim);
+
+    ImGui::Separator();
     ImGui::Text("Models");
     for (size_t i = 0; i < nModels; i++)
     {

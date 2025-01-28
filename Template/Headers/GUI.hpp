@@ -34,10 +34,12 @@ struct SceneSettings {
     float manual_max_bias = 0.05f;
     float manual_bias = 0.05f;
     int shadow_samples = 40;
+    float sim_speed = 1.0f;
     bool wireframe_mode;
     bool directional_shadows_on = false;
     bool omnidirectional_shadows_on = true;
     bool use_normal_map = true;
+    bool run_sim = false;
 };
 
 /// <summary>

@@ -16,9 +16,10 @@ const int yOffsets[4] = { 0, 0, 1, -1 };
 
 struct ClothMesh {
 	float width, depth, widthStep, depthStep;
-	std::vector<glm::vec3> vertices, preVertices;
+	std::vector<glm::vec3> vertices, preVertices, fixedVertices;
 	std::vector<unsigned int> indices, triIndices;
 	std::vector<std::array<float, 4>> restLengths;				// 4 (except edges) initial distances to neigthbors
+	std::array<float, 2> leftCornerRestLengths, rightCornerRestLengths;
 	unsigned int VAO, VBO, EBO;
 	unsigned int gridRes;
 	std::map<unsigned int, unsigned int> restMap;	// Maps vertex coordinates (x + y * gridRes) to restLength indices
@@ -102,6 +103,10 @@ struct ClothMesh {
 
 		glBindVertexArray(0);
 
+		// Add fixed vertex positions
+		for (size_t x = 0; x < gridRes; x++)
+			fixedVertices.push_back(vertices[x]);
+
 		// Calculate rest length
 		restLengths.resize(vertices.size() - 4 * gridRes + 4);
 		unsigned int restIndex = 0;
@@ -121,6 +126,15 @@ struct ClothMesh {
 				restIndex++;
 			}
 
+		// Calculate bottom corner rest lengths
+		leftCornerRestLengths = {
+			glm::length(vertices[(gridRes - 1) * gridRes] - vertices[1 + (gridRes - 1) * gridRes]) * 1.15f,		// Right neighbor
+			glm::length(vertices[(gridRes - 1) * gridRes] -	vertices[(gridRes - 2) * gridRes]) * 1.15f };		// Top neighbor
+
+		rightCornerRestLengths = {
+			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes] - vertices[(gridRes - 2) + (gridRes - 1) * gridRes]) * 1.15f,		// Left neighbor
+			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes] - vertices[(gridRes - 1) + (gridRes - 2) * gridRes]) * 1.15f };	// Top neighbor };								// Top neighbor
+
 		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << indices.size() << " indices" << std::endl;
 	}
 
@@ -136,6 +150,7 @@ struct ClothMesh {
 				const glm::vec3 prevPos = preVertices[x + y * gridRes];
 
 				vertices[x + y * gridRes] += (currentPos - prevPos) + gravity * dt;
+				//vertices[x + y * gridRes] += (currentPos - prevPos) + gravity;
 
 				preVertices[x + y * gridRes] = currentPos;
 
@@ -156,14 +171,17 @@ struct ClothMesh {
 					for (int linknr = 0; linknr < 4; linknr++)
 					{
 						//Point& neighbour = grid( x + xoffset[linknr], y + yoffset[linknr] );
+
+						const unsigned int neighborIndex = x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes;
 						
-						glm::vec3 neighbor = vertices[x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes];
+						glm::vec3 neighbor = vertices[neighborIndex];
 
 						float distance = glm::length(neighbor - pos);
 						if (!isfinite(distance))
 						{
 							// warning: this happens; sometimes vertex positions 'explode'.
 							// TODO: CLAMP!!!
+							vertices[x + y * gridRes] = preVertices[x + y * gridRes];
 							continue;
 						}
 						if (distance > restLengths[restMap.at(x + y * gridRes)][linknr])
@@ -171,22 +189,103 @@ struct ClothMesh {
 							// pull points together
 							float force = distance / (restLengths[restMap.at(x + y * gridRes)][linknr]) - 1;
 							glm::vec3 direction = neighbor - pos;
-							pos += force * direction * 0.5f * dt;
-							neighbor -= force * direction * 0.5f * dt;
+							//glm::vec3 direction = glm::normalize(neighbor - pos);
+							glm::vec3 impulse = force * direction * 0.5f;
+							pos += impulse;
+							neighbor -= impulse;
+							/*pos -= force * direction * 0.5f;
+							neighbor += force * direction * 0.5f;*/
 						}
 
 						vertices[x + y * gridRes] = pos;
-						vertices[x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes] = neighbor;
+						vertices[neighborIndex] = neighbor;
 					}
 				}
+
+			// Constrain bottom corners
+			const unsigned int rightIndex = 1 + (gridRes - 1) * gridRes;
+			const unsigned int topLeftIndex = (gridRes - 2) * gridRes;
+			const unsigned int leftIndex = (gridRes - 2) + (gridRes - 1) * gridRes;
+			const unsigned int topRightIndex = (gridRes - 1) + (gridRes - 2) * gridRes;
+
+			const std::array<unsigned int, 2> leftCornerIndices = { rightIndex, topLeftIndex };
+			const std::array<unsigned int, 2> rightCornerIndices = { leftIndex, topRightIndex };
+
+			// Left corner
+			for (unsigned int index = 0; index < 2; index++)
+			{
+				glm::vec3 leftPos = vertices[(gridRes - 1) * gridRes];
+				glm::vec3 neighbor = vertices[leftCornerIndices[index]];
+
+				float distance = glm::length(neighbor - leftPos);
+				if (!isfinite(distance))
+				{
+					// warning: this happens; sometimes vertex positions 'explode'.
+					// TODO: CLAMP!!!
+					vertices[(gridRes - 1) * gridRes] = preVertices[(gridRes - 1) * gridRes];
+					continue;
+				}
+				if (distance > leftCornerRestLengths[index])
+				{
+					// pull points together
+					float force = distance / (leftCornerRestLengths[index]) - 1;
+					glm::vec3 direction = neighbor - leftPos;
+					//glm::vec3 direction = glm::normalize(neighbor - leftPos);
+					glm::vec3 impulse = force * direction * 0.5f;
+					leftPos += impulse;
+					neighbor -= impulse;
+					/*leftPos -= force * direction * 0.5f;
+					neighbor += force * direction * 0.5f;*/
+				}
+
+				vertices[(gridRes - 1) * gridRes] = leftPos;
+				vertices[leftCornerIndices[index]] = neighbor;
+			}
+
+			// Right corner
+			for (unsigned int index = 0; index < 2; index++)
+			{
+				glm::vec3 rightPos = vertices[(gridRes - 1) + (gridRes - 1) * gridRes];
+				glm::vec3 neighbor = vertices[rightCornerIndices[index]];
+
+				float distance = glm::length(neighbor - rightPos);
+				if (!isfinite(distance))
+				{
+					// warning: this happens; sometimes vertex positions 'explode'.
+					// TODO: CLAMP!!!
+					vertices[(gridRes - 1) + (gridRes - 1) * gridRes] = preVertices[(gridRes - 1) + (gridRes - 1) * gridRes];
+					continue;
+				}
+				if (distance > rightCornerRestLengths[index])
+				{
+					// pull points together
+					float force = distance / (rightCornerRestLengths[index]) - 1;
+					glm::vec3 direction = neighbor - rightPos;
+					//glm::vec3 direction = glm::normalize(neighbor - rightPos);
+					glm::vec3 impulse = force * direction * 0.5f;
+					rightPos += impulse;
+					neighbor -= impulse;
+					/*rightPos -= force * direction * 0.5f;
+					neighbor += force * direction * 0.5f;*/
+				}
+
+				vertices[(gridRes - 1) + (gridRes - 1) * gridRes] = rightPos;
+				vertices[rightCornerIndices[index]] = neighbor;
+			}
+
+			// Fixed vertices
+			/*for (int x = 0; x < gridRes; x++)
+				vertices[x] = fixedVertices[x];*/
 		}
+
+		std::cout << vertices[(gridRes - 1) * gridRes].x << " | " << vertices[(gridRes - 1) * gridRes].y << " | " << vertices[(gridRes - 1) * gridRes].z << std::endl;
 	}
 
 	void Simulate(float dt)
 	{
 		for (int step = 0; step < VERLET_STEPS; step++)
 		{
-			ApplyGravity(dt * 0.01f);
+			ApplyGravity(dt * 0.005f);
 			ApplyConstraints(dt * 0.01f);
 		}
 	}
