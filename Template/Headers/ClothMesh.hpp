@@ -368,13 +368,33 @@ struct ClothMesh {
 		//std::cout << vertices[(gridRes - 1) * gridRes].x << " | " << vertices[(gridRes - 1) * gridRes].y << " | " << vertices[(gridRes - 1) * gridRes].z << std::endl;
 	}
 
-	void Simulate(float dt)
+	void AddDrag(float drag, float dt)
+	{
+		for (size_t y = 1; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				const glm::vec3 currentPos = vertices[x + y * gridRes];
+				const glm::vec3 prevPos = preVertices[x + y * gridRes];
+
+				const glm::vec3 dragDirection = -(currentPos - prevPos);
+
+				vertices[x + y * gridRes] += (currentPos - prevPos) + dragDirection * drag * dt;
+				//vertices[x + y * gridRes] += (currentPos - prevPos) + dragDirection * drag;
+
+				preVertices[x + y * gridRes] = currentPos;
+			}
+	}
+
+	void Simulate(bool flag, float drag, float dt)
 	{
 		for (int step = 0; step < VERLET_STEPS; step++)
 		{
 			//ApplyGravity(dt * 0.005f);
 			ApplyGravity(dt);
-			// TODO: Add drag!
+
+			if (flag)
+				AddDrag(drag, dt);
+
 			ApplyConstraints(dt);
 		}
 	}

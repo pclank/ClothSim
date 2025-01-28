@@ -324,7 +324,7 @@ int main(int argc, char * argv[]) {
     CustomModel testCustom(customDebug);
 
     // Cloth mesh
-    ClothMesh cloth(5.0f, 5.0f, 4, 4, 3);
+    ClothMesh cloth(5.0f, 5.0f, 4, 4, 4);
 
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false)
@@ -385,7 +385,7 @@ int main(int argc, char * argv[]) {
         // Render cloth
         if (settings.run_sim)
         {
-            cloth.Simulate(static_cast<float>(timer.GetData().DeltaTime) * settings.sim_speed);
+            cloth.Simulate(settings.sim_drag, settings.sim_drag_amount, static_cast<float>(timer.GetData().DeltaTime) * settings.sim_speed);
             cloth.UpdateVertices(currentFrame);
         }
         if (gui.clothSettings.enabled)

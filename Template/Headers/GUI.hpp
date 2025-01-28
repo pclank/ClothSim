@@ -35,7 +35,7 @@ struct SceneSettings {
     float manual_bias = 0.05f;
     int shadow_samples = 40;
     float sim_speed = 1.0f;
-    float sim_drag_amount = 0.001f;
+    float sim_drag_amount = 0.01f;
     bool wireframe_mode;
     bool directional_shadows_on = false;
     bool omnidirectional_shadows_on = true;
