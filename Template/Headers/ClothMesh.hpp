@@ -2,6 +2,7 @@
 
 #include <Shader.hpp>
 #include <vector>
+#include <array>
 #include <glm/glm.hpp>
 
 #define GRAVITY 0.003f
@@ -16,10 +17,11 @@ const int yOffsets[4] = { 0, 0, 1, -1 };
 struct ClothMesh {
 	float width, depth, widthStep, depthStep;
 	std::vector<glm::vec3> vertices, preVertices;
-	std::vector<unsigned int> indices;
-	std::vector<float> restLengths;					// 4 (except edges) initial distances to neigthbors
+	std::vector<unsigned int> indices, triIndices;
+	std::vector<std::array<float, 4>> restLengths;				// 4 (except edges) initial distances to neigthbors
 	unsigned int VAO, VBO, EBO;
 	unsigned int gridRes;
+	std::map<unsigned int, unsigned int> restMap;	// Maps vertex coordinates (x + y * gridRes) to restLength indices
 
 	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, unsigned int gridRes, float initHeight = 2.0f)
 		:
@@ -62,6 +64,18 @@ struct ClothMesh {
 			indexStart++;
 		}
 
+		// Calculate triangle indices
+		for (size_t i = 0; i < indices.size(); i += 4)
+		{
+			triIndices.push_back(indices[i]);
+			triIndices.push_back(indices[i + 1]);
+			triIndices.push_back(indices[i + 2]);
+
+			triIndices.push_back(indices[i]);
+			triIndices.push_back(indices[i + 2]);
+			triIndices.push_back(indices[i + 3]);
+		}
+
 		// Store initial positions
 		preVertices = std::vector<glm::vec3>(vertices);
 
@@ -78,7 +92,8 @@ struct ClothMesh {
 		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
+		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, triIndices.size() * sizeof(unsigned int), triIndices.data(), GL_DYNAMIC_DRAW);
 
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 		glEnableVertexAttribArray(0);
@@ -88,14 +103,22 @@ struct ClothMesh {
 		glBindVertexArray(0);
 
 		// Calculate rest length
+		restLengths.resize(vertices.size() - 4 * gridRes + 4);
+		unsigned int restIndex = 0;
 		for (size_t y = 1; y < gridRes - 1; y++)
 			for (size_t x = 1; x < gridRes - 1; x++)
 			{
 				// 15% slack
 				for (int c = 0; c < 4; c++)
 				{
-					glm::length(vertices[x + y * gridRes] - vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes]) * 1.15f;
+					restLengths[restIndex][c] = glm::length(vertices[x + y * gridRes] -
+						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes]) * 1.15f;
 				}
+
+				// Add to map
+				restMap[x + y * gridRes] = restIndex;
+
+				restIndex++;
 			}
 
 		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << indices.size() << " indices" << std::endl;
@@ -122,7 +145,50 @@ struct ClothMesh {
 
 	inline void ApplyConstraints(float dt)
 	{
+		for (int i = 0; i < CONSTRAINT_STEPS; i++)
+		{
+			for (int y = 1; y < gridRes - 1; y++)
+				for (int x = 1; x < gridRes - 1; x++)
+				{
+					glm::vec3 pos = vertices[x + y * gridRes];
 
+					// use springs to four neighbouring points
+					for (int linknr = 0; linknr < 4; linknr++)
+					{
+						//Point& neighbour = grid( x + xoffset[linknr], y + yoffset[linknr] );
+						
+						glm::vec3 neighbor = vertices[x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes];
+
+						float distance = glm::length(neighbor - pos);
+						if (!isfinite(distance))
+						{
+							// warning: this happens; sometimes vertex positions 'explode'.
+							// TODO: CLAMP!!!
+							continue;
+						}
+						if (distance > restLengths[restMap.at(x + y * gridRes)][linknr])
+						{
+							// pull points together
+							float force = distance / (restLengths[restMap.at(x + y * gridRes)][linknr]) - 1;
+							glm::vec3 direction = neighbor - pos;
+							pos += force * direction * 0.5f * dt;
+							neighbor -= force * direction * 0.5f * dt;
+						}
+
+						vertices[x + y * gridRes] = pos;
+						vertices[x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes] = neighbor;
+					}
+				}
+		}
+	}
+
+	void Simulate(float dt)
+	{
+		for (int step = 0; step < VERLET_STEPS; step++)
+		{
+			ApplyGravity(dt * 0.01f);
+			ApplyConstraints(dt * 0.01f);
+		}
 	}
 
 	void UpdateVertices(float time)
@@ -146,8 +212,8 @@ struct ClothMesh {
 		glBindVertexArray(VAO);
 
 		//glDrawArrays(GL_TRIANGLES, 0, vertices.size());
-		//glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
-		glDrawElements(GL_TRIANGLE_FAN, indices.size(), GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, triIndices.size(), GL_UNSIGNED_INT, 0);
+		//glDrawElements(GL_TRIANGLE_FAN, indices.size(), GL_UNSIGNED_INT, 0);
 
 		glBindVertexArray(0);
 

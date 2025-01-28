@@ -383,7 +383,7 @@ int main(int argc, char * argv[]) {
         testCustom.Render(customModelShader, glm::mat4(1.0f));
 
         // Render cloth
-        cloth.ApplyGravity(static_cast<float>(timer.GetData().DeltaTime));
+        cloth.Simulate(static_cast<float>(timer.GetData().DeltaTime));
         cloth.UpdateVertices(currentFrame);
         cloth.Render(customModelShader, glm::mat4(1.0f));
 
