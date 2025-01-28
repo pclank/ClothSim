@@ -26,6 +26,11 @@ void GUI::Init(size_t nModels)
     // Initialize model settings
     this->nModels = nModels;
     modelSets.resize(nModels);
+
+    // Initialize cloth settings
+    clothSettings.scale[0] = 1.0f;
+    clothSettings.scale[1] = 1.0f;
+    clothSettings.scale[2] = 1.0f;
 }
 
 void GUI::Render()
@@ -61,7 +66,15 @@ void GUI::Render()
     ImGui::Separator();
     ImGui::Text("Simulation settings");
     ImGui::SliderFloat("Speed", &m_sceneSettings.sim_speed, 0.01f, 1.0f, "%.2f");
+    ImGui::SliderFloat("Drag amount", &m_sceneSettings.sim_drag_amount, 0.01f, 2.0f, "%.2f");
+    ImGui::Checkbox("Drag on", &m_sceneSettings.sim_drag);
     ImGui::Checkbox("Play", &m_sceneSettings.run_sim);
+    std::string strEnabled = std::string("Cloth enabled");
+    std::string strTranslation = std::string("Cloth translation");
+    std::string strScale = std::string("Cloth scaling");
+    ImGui::Checkbox(strEnabled.c_str(), &clothSettings.enabled);
+    ImGui::SliderFloat3(strTranslation.c_str(), clothSettings.translation, -10.0f, 10.0f);
+    ImGui::SliderFloat3(strScale.c_str(), clothSettings.scale, 0.001f, 2.0f);
 
     ImGui::Separator();
     ImGui::Text("Models");
@@ -75,9 +88,9 @@ void GUI::Render()
         ImGui::SliderFloat3(strScale.c_str(), modelSets[i].scale, 0.001f, 2.0f);
     }
     ImGui::Separator();
-    const std::string strEnabled = std::string("Custom Model enabled");
-    const std::string strTranslation = std::string("Custom Model translation");
-    const std::string strScale = std::string("Custom Model scaling");
+    strEnabled = std::string("Custom Model enabled");
+    strTranslation = std::string("Custom Model translation");
+    strScale = std::string("Custom Model scaling");
     ImGui::Checkbox(strEnabled.c_str(), &customModelSettings.enabled);
     ImGui::SliderFloat3(strTranslation.c_str(), customModelSettings.translation, -10.0f, 10.0f);
     ImGui::SliderFloat3(strScale.c_str(), customModelSettings.scale, 0.001f, 2.0f);

@@ -35,11 +35,13 @@ struct SceneSettings {
     float manual_bias = 0.05f;
     int shadow_samples = 40;
     float sim_speed = 1.0f;
+    float sim_drag_amount = 0.001f;
     bool wireframe_mode;
     bool directional_shadows_on = false;
     bool omnidirectional_shadows_on = true;
     bool use_normal_map = true;
     bool run_sim = false;
+    bool sim_drag = false;
 };
 
 /// <summary>
@@ -71,7 +73,7 @@ class GUI
 {
 public:
     std::vector<ModelSettings> modelSets;
-    ModelSettings customModelSettings;
+    ModelSettings customModelSettings, clothSettings;
 
     GUI(GLFWwindow* pWindow, Camera& camera, SceneSettings& sceneSettings, Timer& timer);
 

@@ -43,7 +43,7 @@ std::vector<Model> models(MAX_MODELS);
 GUI* guiPointer;
 Timer timer;
 SceneSettings settings;
-bool spacebar_down = false;
+bool spacebar_down = false, p_down = false;
 uint32_t nModels = 0;
 
 int main(int argc, char * argv[]) {
@@ -388,7 +388,8 @@ int main(int argc, char * argv[]) {
             cloth.Simulate(static_cast<float>(timer.GetData().DeltaTime) * settings.sim_speed);
             cloth.UpdateVertices(currentFrame);
         }
-        cloth.Render(customModelShader, glm::mat4(1.0f));
+        if (gui.clothSettings.enabled)
+            cloth.Render(customModelShader, gui.clothSettings.GetModelMatrix());
 
         lightingShader.use();
         lightingShader.setMat4("projection", projection);
@@ -475,10 +476,14 @@ void ProcessInput(GLFWwindow* window)
     if (!spacebar_down && glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
         spacebar_down = true;
 
-    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+    if (p_down && glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE)
     {
         settings.run_sim = !settings.run_sim;
+        p_down = false;
     }
+
+    if (!p_down && glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+        p_down = true;
 }
 
 void MouseMovementCallback(GLFWwindow* window, double x_pos, double y_pos)

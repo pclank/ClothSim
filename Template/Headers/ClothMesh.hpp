@@ -374,6 +374,7 @@ struct ClothMesh {
 		{
 			//ApplyGravity(dt * 0.005f);
 			ApplyGravity(dt);
+			// TODO: Add drag!
 			ApplyConstraints(dt);
 		}
 	}

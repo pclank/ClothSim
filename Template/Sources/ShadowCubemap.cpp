@@ -57,15 +57,14 @@ void ShadowCubemap::Render(float* lightPos, std::vector<Model>& models, const in
         if (gui.modelSets[i].enabled)
             models[i].Draw(shader, gui.modelSets[i].GetModelMatrix());
 
-    if (customModel != nullptr)
+    if (customModel != nullptr && gui.customModelSettings.enabled)
     {
         //customModel->Render(shader, gui.customModelSettings.GetModelMatrix());
         customModel->Render(shader, glm::mat4(1.0f));
     }
 
-    // TODO: Add gui control!
-    if (clothMesh != nullptr)
-        customModel->Render(shader, glm::mat4(1.0f));
+    if (clothMesh != nullptr && gui.clothSettings.enabled)
+        clothMesh->Render(shader, gui.clothSettings.GetModelMatrix());
 
     //glCullFace(GL_BACK);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
