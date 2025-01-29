@@ -9,7 +9,8 @@
 
 #define GRAVITY 0.003f
 #define VERLET_STEPS 3
-#define CONSTRAINT_STEPS 4
+//#define CONSTRAINT_STEPS 4
+#define CONSTRAINT_STEPS 6
 
 struct SimpleVertex {
 	glm::vec3 pos;
@@ -407,8 +408,8 @@ struct ClothMesh {
 			}
 
 			// Fixed vertices
-			/*for (int x = 0; x < gridRes; x++)
-				vertices[x] = fixedVertices[x];*/
+			for (int x = 0; x < gridRes; x++)
+				vertices[x].pos = fixedVertices[x].pos;
 		}
 
 		//std::cout << vertices[(gridRes - 1) * gridRes].x << " | " << vertices[(gridRes - 1) * gridRes].y << " | " << vertices[(gridRes - 1) * gridRes].z << std::endl;

@@ -324,8 +324,8 @@ int main(int argc, char * argv[]) {
     CustomModel testCustom(customDebug);
 
     // Cloth mesh
-    //ClothMesh cloth(5.0f, 5.0f, 4, 4, 4);
-    ClothMesh cloth(5.0f, 5.0f, 4, 4, 3);
+    //ClothMesh cloth(5.0f, 5.0f, 4, 4, 5);
+    ClothMesh cloth(5.0f, 5.0f, 8, 8, 10);
 
     // Seed RNGs
     srand(static_cast <unsigned> (time(0)));
