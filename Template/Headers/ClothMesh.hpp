@@ -13,6 +13,11 @@
 struct SimpleVertex {
 	glm::vec3 pos;
 	glm::vec2 texCoords;
+
+	SimpleVertex(glm::vec3 pos, glm::vec2 texCoords)
+		:
+		pos(pos), texCoords(texCoords)
+	{}
 };
 
 const glm::vec3 gravity(0.0f, -GRAVITY, 0.0f);
@@ -22,7 +27,8 @@ const int yOffsets[4] = { 0, 0, 1, -1 };
 
 struct ClothMesh {
 	float width, depth, widthStep, depthStep, dU, dV;
-	std::vector<glm::vec3> vertices, preVertices, fixedVertices;
+	//std::vector<glm::vec3> vertices, preVertices, fixedVertices;
+	std::vector<SimpleVertex> vertices, preVertices, fixedVertices;
 	std::vector<glm::vec2> texCoords;
 	std::vector<unsigned int> indices, triIndices;
 	std::vector<std::array<float, 4>> restLengths;				// 4 (except edges) initial distances to neigthbors
@@ -60,11 +66,15 @@ struct ClothMesh {
 
 				tempVertex.x = w;
 				tempVertex.z = d;
-				vertices.push_back(tempVertex);
+
+				//vertices.push_back(tempVertex);
 
 				float u = wI * dU;
 
 				texCoords.push_back(glm::vec2(u, v));
+
+				SimpleVertex sv(tempVertex, glm::vec2(u, v));
+				vertices.push_back(sv);
 			}
 		}
 
@@ -96,7 +106,8 @@ struct ClothMesh {
 		}
 
 		// Store initial positions
-		preVertices = std::vector<glm::vec3>(vertices);
+		//preVertices = std::vector<glm::vec3>(vertices);
+		preVertices = std::vector<SimpleVertex>(vertices);
 
 		/*for (size_t i = 0; i < preVertices.size(); i++)
 			std::cout << preVertices[i].x << " | " << preVertices[i].y << " | " << preVertices[i].z << std::endl;*/
@@ -108,18 +119,20 @@ struct ClothMesh {
 
 		glBindVertexArray(VAO);
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
+		//glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(SimpleVertex), vertices.data(), GL_DYNAMIC_DRAW);
 
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
 		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, triIndices.size() * sizeof(unsigned int), triIndices.data(), GL_DYNAMIC_DRAW);
 
 		// Vertex positions
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(SimpleVertex), (void*)0);
 		glEnableVertexAttribArray(0);
 
 		// Vertex texCoords
-		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(SimpleVertex), (void*)offsetof(SimpleVertex, texCoords));
 		glEnableVertexAttribArray(1);
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -139,8 +152,8 @@ struct ClothMesh {
 				// 15% slack
 				for (int c = 0; c < 4; c++)
 				{
-					restLengths[restIndex][c] = glm::length(vertices[x + y * gridRes] -
-						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes]) * 1.15f;
+					restLengths[restIndex][c] = glm::length(vertices[x + y * gridRes].pos -
+						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * 1.15f;
 				}
 
 				// Add to map
@@ -153,16 +166,16 @@ struct ClothMesh {
 		for (unsigned int y = 1; y < gridRes - 1; y++)
 		{
 			std::array<float, 3> tmpLengths = {
-				glm::length(vertices[y * gridRes] - vertices[1 + y * gridRes]) * 1.15f,					// Right neighbor
-				glm::length(vertices[y * gridRes] - vertices[(y - 1) * gridRes]) * 1.15f,				// Top neighbor
-				glm::length(vertices[y * gridRes] - vertices[(y + 1) * gridRes]) * 1.15f				// Bottom neighbor
+				glm::length(vertices[y * gridRes].pos - vertices[1 + y * gridRes].pos) * 1.15f,					// Right neighbor
+				glm::length(vertices[y * gridRes].pos - vertices[(y - 1) * gridRes].pos) * 1.15f,				// Top neighbor
+				glm::length(vertices[y * gridRes].pos - vertices[(y + 1) * gridRes].pos) * 1.15f				// Bottom neighbor
 			};
 			leftRestLengths.push_back(tmpLengths);
 
 			tmpLengths = {
-				glm::length(vertices[gridRes - 1 + y * gridRes] - vertices[gridRes - 2 + y * gridRes]) * 1.15f,		// Left neighbor
-				glm::length(vertices[gridRes - 1 + y * gridRes] - vertices[gridRes - 1 + (y - 1) * gridRes]) * 1.15f,				// Top neighbor
-				glm::length(vertices[gridRes - 1 + y * gridRes] - vertices[gridRes - 1 + (y + 1) * gridRes]) * 1.15f				// Bottom neighbor
+				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 2 + y * gridRes].pos) * 1.15f,			// Left neighbor
+				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 1 + (y - 1) * gridRes].pos) * 1.15f,	// Top neighbor
+				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 1 + (y + 1) * gridRes].pos) * 1.15f	// Bottom neighbor
 			};
 			rightRestLengths.push_back(tmpLengths);
 		}
@@ -170,12 +183,12 @@ struct ClothMesh {
 
 		// Calculate bottom corner rest lengths
 		leftCornerRestLengths = {
-			glm::length(vertices[(gridRes - 1) * gridRes] - vertices[1 + (gridRes - 1) * gridRes]) * 1.15f,		// Right neighbor
-			glm::length(vertices[(gridRes - 1) * gridRes] -	vertices[(gridRes - 2) * gridRes]) * 1.15f };		// Top neighbor
+			glm::length(vertices[(gridRes - 1) * gridRes].pos - vertices[1 + (gridRes - 1) * gridRes].pos) * 1.15f,		// Right neighbor
+			glm::length(vertices[(gridRes - 1) * gridRes].pos -	vertices[(gridRes - 2) * gridRes].pos) * 1.15f };		// Top neighbor
 
 		rightCornerRestLengths = {
-			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes] - vertices[(gridRes - 2) + (gridRes - 1) * gridRes]) * 1.15f,		// Left neighbor
-			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes] - vertices[(gridRes - 1) + (gridRes - 2) * gridRes]) * 1.15f };	// Top neighbor };								// Top neighbor
+			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos - vertices[(gridRes - 2) + (gridRes - 1) * gridRes].pos) * 1.15f,		// Left neighbor
+			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos - vertices[(gridRes - 1) + (gridRes - 2) * gridRes].pos) * 1.15f };	// Top neighbor };								// Top neighbor
 
 		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << triIndices.size() << " indices" << std::endl;
 	}
@@ -188,13 +201,13 @@ struct ClothMesh {
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
 			{
-				const glm::vec3 currentPos = vertices[x + y * gridRes];
-				const glm::vec3 prevPos = preVertices[x + y * gridRes];
+				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
+				const glm::vec3 prevPos = preVertices[x + y * gridRes].pos;
 
-				vertices[x + y * gridRes] += (currentPos - prevPos) + gravity * dt;
-				//vertices[x + y * gridRes] += (currentPos - prevPos) + gravity;
+				vertices[x + y * gridRes].pos += (currentPos - prevPos) + gravity * dt;
+				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + gravity;
 
-				preVertices[x + y * gridRes] = currentPos;
+				preVertices[x + y * gridRes].pos = currentPos;
 
 				// if (Rand( 10 ) < 0.03f) grid( x, y ).pos += float2( Rand( 0.02f + magic ), Rand( 0.12f ) );
 			}
@@ -207,7 +220,7 @@ struct ClothMesh {
 			for (int y = 1; y < gridRes - 1; y++)
 				for (int x = 1; x < gridRes - 1; x++)
 				{
-					glm::vec3 pos = vertices[x + y * gridRes];
+					glm::vec3 pos = vertices[x + y * gridRes].pos;
 
 					// use springs to four neighbouring points
 					for (int linknr = 0; linknr < 4; linknr++)
@@ -216,14 +229,14 @@ struct ClothMesh {
 
 						const unsigned int neighborIndex = x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes;
 						
-						glm::vec3 neighbor = vertices[neighborIndex];
+						glm::vec3 neighbor = vertices[neighborIndex].pos;
 
 						float distance = glm::length(neighbor - pos);
 						if (!isfinite(distance))
 						{
 							// warning: this happens; sometimes vertex positions 'explode'.
 							// TODO: CLAMP!!!
-							vertices[x + y * gridRes] = preVertices[x + y * gridRes];
+							vertices[x + y * gridRes].pos = preVertices[x + y * gridRes].pos;
 							continue;
 						}
 						if (distance > restLengths[restMap.at(x + y * gridRes)][linknr])
@@ -239,8 +252,8 @@ struct ClothMesh {
 							neighbor += force * direction * 0.5f;*/
 						}
 
-						vertices[x + y * gridRes] = pos;
-						vertices[neighborIndex] = neighbor;
+						vertices[x + y * gridRes].pos = pos;
+						vertices[neighborIndex].pos = neighbor;
 					}
 				}
 
@@ -256,15 +269,15 @@ struct ClothMesh {
 			// Left corner
 			for (unsigned int index = 0; index < 2; index++)
 			{
-				glm::vec3 leftPos = vertices[(gridRes - 1) * gridRes];
-				glm::vec3 neighbor = vertices[leftCornerIndices[index]];
+				glm::vec3 leftPos = vertices[(gridRes - 1) * gridRes].pos;
+				glm::vec3 neighbor = vertices[leftCornerIndices[index]].pos;
 
 				float distance = glm::length(neighbor - leftPos);
 				if (!isfinite(distance))
 				{
 					// warning: this happens; sometimes vertex positions 'explode'.
 					// TODO: CLAMP!!!
-					vertices[(gridRes - 1) * gridRes] = preVertices[(gridRes - 1) * gridRes];
+					vertices[(gridRes - 1) * gridRes].pos = preVertices[(gridRes - 1) * gridRes].pos;
 					continue;
 				}
 				if (distance > leftCornerRestLengths[index])
@@ -280,22 +293,22 @@ struct ClothMesh {
 					neighbor += force * direction * 0.5f;*/
 				}
 
-				vertices[(gridRes - 1) * gridRes] = leftPos;
-				vertices[leftCornerIndices[index]] = neighbor;
+				vertices[(gridRes - 1) * gridRes].pos = leftPos;
+				vertices[leftCornerIndices[index]].pos = neighbor;
 			}
 
 			// Right corner
 			for (unsigned int index = 0; index < 2; index++)
 			{
-				glm::vec3 rightPos = vertices[(gridRes - 1) + (gridRes - 1) * gridRes];
-				glm::vec3 neighbor = vertices[rightCornerIndices[index]];
+				glm::vec3 rightPos = vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos;
+				glm::vec3 neighbor = vertices[rightCornerIndices[index]].pos;
 
 				float distance = glm::length(neighbor - rightPos);
 				if (!isfinite(distance))
 				{
 					// warning: this happens; sometimes vertex positions 'explode'.
 					// TODO: CLAMP!!!
-					vertices[(gridRes - 1) + (gridRes - 1) * gridRes] = preVertices[(gridRes - 1) + (gridRes - 1) * gridRes];
+					vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos = preVertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos;
 					continue;
 				}
 				if (distance > rightCornerRestLengths[index])
@@ -311,8 +324,8 @@ struct ClothMesh {
 					neighbor += force * direction * 0.5f;*/
 				}
 
-				vertices[(gridRes - 1) + (gridRes - 1) * gridRes] = rightPos;
-				vertices[rightCornerIndices[index]] = neighbor;
+				vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos = rightPos;
+				vertices[rightCornerIndices[index]].pos = neighbor;
 			}
 
 			const std::array<glm::ivec2, 3> leftSideOffsets = { glm::ivec2(1, 0), glm::ivec2(0, -1), glm::ivec2(0, 1) };
@@ -320,18 +333,18 @@ struct ClothMesh {
 
 			for (unsigned int y = 1; y < gridRes - 1; y++)
 			{
-				glm::vec3 pos = vertices[y * gridRes];
+				glm::vec3 pos = vertices[y * gridRes].pos;
 				for (unsigned int index = 0; index < 3; index++)
 				{
 					unsigned int neighborIndex = leftSideOffsets[index].x + (y + leftSideOffsets[index].y) * gridRes ;
-					glm::vec3 neighbor = vertices[neighborIndex];
+					glm::vec3 neighbor = vertices[neighborIndex].pos;
 
 					float distance = glm::length(neighbor - pos);
 					if (!isfinite(distance))
 					{
 						// warning: this happens; sometimes vertex positions 'explode'.
 						// TODO: CLAMP!!!
-						vertices[y * gridRes] = preVertices[y * gridRes];
+						vertices[y * gridRes].pos = preVertices[y * gridRes].pos;
 						continue;
 					}
 					if (distance > leftRestLengths[y - 1][index])
@@ -347,22 +360,22 @@ struct ClothMesh {
 						neighbor += force * direction * 0.5f;*/
 					}
 
-					vertices[y * gridRes] = pos;
-					vertices[neighborIndex] = neighbor;
+					vertices[y * gridRes].pos = pos;
+					vertices[neighborIndex].pos = neighbor;
 				}
 
-				pos = vertices[gridRes - 1 + y * gridRes];
+				pos = vertices[gridRes - 1 + y * gridRes].pos;
 				for (unsigned int index = 0; index < 3; index++)
 				{
 					unsigned int neighborIndex = gridRes - 1 + rightSideOffsets[index].x + (y + rightSideOffsets[index].y) * gridRes;
-					glm::vec3 neighbor = vertices[neighborIndex];
+					glm::vec3 neighbor = vertices[neighborIndex].pos;
 
 					float distance = glm::length(neighbor - pos);
 					if (!isfinite(distance))
 					{
 						// warning: this happens; sometimes vertex positions 'explode'.
 						// TODO: CLAMP!!!
-						vertices[gridRes - 1 + y * gridRes] = preVertices[gridRes - 1 + y * gridRes];
+						vertices[gridRes - 1 + y * gridRes].pos = preVertices[gridRes - 1 + y * gridRes].pos;
 						continue;
 					}
 					if (distance > rightRestLengths[y - 1][index])
@@ -378,8 +391,8 @@ struct ClothMesh {
 						neighbor += force * direction * 0.5f;*/
 					}
 
-					vertices[gridRes - 1 + y * gridRes] = pos;
-					vertices[neighborIndex] = neighbor;
+					vertices[gridRes - 1 + y * gridRes].pos = pos;
+					vertices[neighborIndex].pos = neighbor;
 				}
 			}
 
@@ -396,15 +409,15 @@ struct ClothMesh {
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
 			{
-				const glm::vec3 currentPos = vertices[x + y * gridRes];
-				const glm::vec3 prevPos = preVertices[x + y * gridRes];
+				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
+				const glm::vec3 prevPos = preVertices[x + y * gridRes].pos;
 
 				const glm::vec3 dragDirection = -(currentPos - prevPos);
 
-				vertices[x + y * gridRes] += (currentPos - prevPos) + dragDirection * drag * dt;
-				//vertices[x + y * gridRes] += (currentPos - prevPos) + dragDirection * drag;
+				vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag * dt;
+				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag;
 
-				preVertices[x + y * gridRes] = currentPos;
+				preVertices[x + y * gridRes].pos = currentPos;
 			}
 	}
 
@@ -413,15 +426,15 @@ struct ClothMesh {
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
 			{
-				const glm::vec3 currentPos = vertices[x + y * gridRes];
-				const glm::vec3 prevPos = preVertices[x + y * gridRes];
+				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
+				const glm::vec3 prevPos = preVertices[x + y * gridRes].pos;
 
 				const glm::vec3 windDirection = glm::normalize(Random3f(-1.0f, 1.0f));
 
-				vertices[x + y * gridRes] += (currentPos - prevPos) + windDirection * wind * dt;
-				//vertices[x + y * gridRes] += (currentPos - prevPos) + windDirection * wind;
+				vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind * dt;
+				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind;
 
-				preVertices[x + y * gridRes] = currentPos;
+				preVertices[x + y * gridRes].pos = currentPos;
 			}
 	}
 
@@ -443,13 +456,9 @@ struct ClothMesh {
 
 	void UpdateVertices(float time)
 	{
-		/*for (size_t i = 0; i < vertices.size(); i += 3)
-		{
-			vertices[i].y = preVertices[i].y + glm::cos(time);
-		}*/
-
 		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
+		//glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(SimpleVertex), vertices.data(), GL_DYNAMIC_DRAW);
 	}
 
 	void Render(Shader& shader, glm::mat4 model)
