@@ -10,14 +10,20 @@
 #define VERLET_STEPS 3
 #define CONSTRAINT_STEPS 4
 
+struct SimpleVertex {
+	glm::vec3 pos;
+	glm::vec2 texCoords;
+};
+
 const glm::vec3 gravity(0.0f, -GRAVITY, 0.0f);
 
 const int xOffsets[4] = { 1, -1, 0, 0 };
 const int yOffsets[4] = { 0, 0, 1, -1 };
 
 struct ClothMesh {
-	float width, depth, widthStep, depthStep;
+	float width, depth, widthStep, depthStep, dU, dV;
 	std::vector<glm::vec3> vertices, preVertices, fixedVertices;
+	std::vector<glm::vec2> texCoords;
 	std::vector<unsigned int> indices, triIndices;
 	std::vector<std::array<float, 4>> restLengths;				// 4 (except edges) initial distances to neigthbors
 	std::array<float, 2> leftCornerRestLengths, rightCornerRestLengths;
@@ -30,14 +36,21 @@ struct ClothMesh {
 		:
 		width(width), depth(depth), gridRes(gridRes)
 	{
-		// calculate the steps for each quad
+		// Calculate the steps for each quad
 		widthStep = width / wP;
 		depthStep = depth / dP;
+
+		// Calculate the steps for texCoords
+		/*dU = 0.9f / wP;
+		dV = 0.9f / wP;*/
+		dU = 1.0f / wP;
+		dV = 1.0f / wP;
 
 		// Calculate vertices
 		unsigned int dI = 0;
 		for (float d = 0.0f; dI < gridRes; d += depthStep, dI++)
 		{
+			float v = dI * dV;
 			unsigned int wI = 0;
 			for (float w = 0.0f; wI < gridRes; w += widthStep, wI++)
 			{
@@ -48,6 +61,10 @@ struct ClothMesh {
 				tempVertex.x = w;
 				tempVertex.z = d;
 				vertices.push_back(tempVertex);
+
+				float u = wI * dU;
+
+				texCoords.push_back(glm::vec2(u, v));
 			}
 		}
 
@@ -97,8 +114,13 @@ struct ClothMesh {
 		//glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_DYNAMIC_DRAW);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, triIndices.size() * sizeof(unsigned int), triIndices.data(), GL_DYNAMIC_DRAW);
 
+		// Vertex positions
 		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 		glEnableVertexAttribArray(0);
+
+		// Vertex texCoords
+		glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(1);
 
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 

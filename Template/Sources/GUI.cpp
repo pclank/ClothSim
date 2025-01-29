@@ -27,10 +27,17 @@ void GUI::Init(size_t nModels)
     this->nModels = nModels;
     modelSets.resize(nModels);
 
+    // Initialize floor model settings
+    modelSets[2].translation[1] = -2.0f;
+    modelSets[2].scale[0] = 0.5f;
+    modelSets[2].scale[1] = 0.5f;
+    modelSets[2].scale[2] = 0.5f;
+
     // Initialize cloth settings
     clothSettings.scale[0] = 1.0f;
     clothSettings.scale[1] = 1.0f;
     clothSettings.scale[2] = 1.0f;
+
 }
 
 void GUI::Render()
