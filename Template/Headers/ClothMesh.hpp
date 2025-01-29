@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Shader.hpp>
+#include <ExtraMath.hpp>
 #include <vector>
 #include <array>
 #include <glm/glm.hpp>
@@ -154,7 +155,7 @@ struct ClothMesh {
 			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes] - vertices[(gridRes - 2) + (gridRes - 1) * gridRes]) * 1.15f,		// Left neighbor
 			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes] - vertices[(gridRes - 1) + (gridRes - 2) * gridRes]) * 1.15f };	// Top neighbor };								// Top neighbor
 
-		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << indices.size() << " indices" << std::endl;
+		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << triIndices.size() << " indices" << std::endl;
 	}
 
 	~ClothMesh()
@@ -385,15 +386,34 @@ struct ClothMesh {
 			}
 	}
 
-	void Simulate(bool flag, float drag, float dt)
+	void AddWind(float wind, float dt)
+	{
+		for (size_t y = 1; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				const glm::vec3 currentPos = vertices[x + y * gridRes];
+				const glm::vec3 prevPos = preVertices[x + y * gridRes];
+
+				const glm::vec3 windDirection = glm::normalize(Random3f(-1.0f, 1.0f));
+
+				vertices[x + y * gridRes] += (currentPos - prevPos) + windDirection * wind * dt;
+				//vertices[x + y * gridRes] += (currentPos - prevPos) + windDirection * wind;
+
+				preVertices[x + y * gridRes] = currentPos;
+			}
+	}
+
+	void Simulate(bool windFlag, float wind, bool dragFlag, float drag, float dt)
 	{
 		for (int step = 0; step < VERLET_STEPS; step++)
 		{
-			//ApplyGravity(dt * 0.005f);
 			ApplyGravity(dt);
 
-			if (flag)
+			if (dragFlag)
 				AddDrag(drag, dt);
+
+			if (windFlag)
+				AddWind(wind, dt);
 
 			ApplyConstraints(dt);
 		}

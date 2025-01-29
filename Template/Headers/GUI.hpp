@@ -36,12 +36,14 @@ struct SceneSettings {
     int shadow_samples = 40;
     float sim_speed = 1.0f;
     float sim_drag_amount = 0.01f;
+    float sim_wind_amount = 0.01f;
     bool wireframe_mode;
     bool directional_shadows_on = false;
     bool omnidirectional_shadows_on = true;
     bool use_normal_map = true;
     bool run_sim = false;
     bool sim_drag = false;
+    bool sim_wind = false;
 };
 
 /// <summary>

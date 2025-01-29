@@ -68,6 +68,8 @@ void GUI::Render()
     ImGui::SliderFloat("Speed", &m_sceneSettings.sim_speed, 0.01f, 1.0f, "%.2f");
     ImGui::SliderFloat("Drag amount", &m_sceneSettings.sim_drag_amount, 0.01f, 2.0f, "%.2f");
     ImGui::Checkbox("Drag on", &m_sceneSettings.sim_drag);
+    ImGui::SliderFloat("Wind amount", &m_sceneSettings.sim_wind_amount, 0.01f, 2.0f, "%.2f");
+    ImGui::Checkbox("Wind on", &m_sceneSettings.sim_wind);
     ImGui::Checkbox("Play", &m_sceneSettings.run_sim);
     std::string strEnabled = std::string("Cloth enabled");
     std::string strTranslation = std::string("Cloth translation");
