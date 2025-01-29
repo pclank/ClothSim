@@ -4,6 +4,7 @@
 #include <ExtraMath.hpp>
 #include <vector>
 #include <array>
+#include <direct.h>
 #include <glm/glm.hpp>
 
 #define GRAVITY 0.003f
@@ -36,12 +37,21 @@ struct ClothMesh {
 	std::vector<std::array<float, 3>> leftRestLengths, rightRestLengths;
 	unsigned int VAO, VBO, EBO;
 	unsigned int gridRes;
+	unsigned int textureId;
 	std::map<unsigned int, unsigned int> restMap;	// Maps vertex coordinates (x + y * gridRes) to restLength indices
 
 	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, unsigned int gridRes, float initHeight = 2.0f)
 		:
 		width(width), depth(depth), gridRes(gridRes)
 	{
+		// Load texture
+		char buffer[1024];
+		getcwd(buffer, 1024);
+		std::string texturePath(buffer);
+		texturePath += "\\..\\textures\\clothTexture.jpg";
+
+		textureId = TextureFromFile(texturePath.c_str(), false);
+
 		// Calculate the steps for each quad
 		widthStep = width / wP;
 		depthStep = depth / dP;
@@ -49,8 +59,8 @@ struct ClothMesh {
 		// Calculate the steps for texCoords
 		/*dU = 0.9f / wP;
 		dV = 0.9f / wP;*/
-		dU = 1.0f / wP;
-		dV = 1.0f / wP;
+		dU = 1.0f / (gridRes - 1);
+		dV = 1.0f / (gridRes - 1);
 
 		// Calculate vertices
 		unsigned int dI = 0;
@@ -466,6 +476,8 @@ struct ClothMesh {
 		shader.use();
 		shader.setMat4("model", model);
 
+		glBindTexture(GL_TEXTURE_2D, textureId);
+
 		glDisable(GL_CULL_FACE);
 
 		glBindVertexArray(VAO);
@@ -477,5 +489,44 @@ struct ClothMesh {
 		glBindVertexArray(0);
 
 		glEnable(GL_CULL_FACE);
+	}
+
+	inline unsigned int TextureFromFile(const char* path, bool gamma)
+	{
+		string filename = string(path);
+
+		unsigned int textureID;
+		glGenTextures(1, &textureID);
+
+		int width, height, nrComponents;
+		unsigned char* data = stbi_load(filename.c_str(), &width, &height, &nrComponents, 0);
+		if (data)
+		{
+			GLenum format;
+			if (nrComponents == 1)
+				format = GL_RED;
+			else if (nrComponents == 3)
+				format = GL_RGB;
+			else if (nrComponents == 4)
+				format = GL_RGBA;
+
+			glBindTexture(GL_TEXTURE_2D, textureID);
+			glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+			glGenerateMipmap(GL_TEXTURE_2D);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+			stbi_image_free(data);
+		}
+		else
+		{
+			std::cout << "Texture failed to load at path: " << path << std::endl;
+			stbi_image_free(data);
+		}
+
+		return textureID;
 	}
 };
