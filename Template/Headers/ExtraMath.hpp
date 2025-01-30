@@ -4,6 +4,12 @@
 #include <glm/glm.hpp>
 
 // **********************************************************************
+// Constants and definitions
+// **********************************************************************
+
+const float epsilon = 0.001f;
+
+// **********************************************************************
 // Random generators
 // **********************************************************************
 
@@ -63,38 +69,22 @@ inline glm::vec2 Random2f(float low, float high)
 /// <param name="sphere"></param>
 /// <returns></returns>
 //inline std::pair<glm::vec3, float> IntersectSphere(glm::vec3& pos, Sphere& sphere)
-inline static std::pair<glm::vec3, float> IntersectSphere(glm::vec3& pos, glm::vec3 spPos, float spR)
+inline static std::pair<glm::vec3, float> IntersectSphere(glm::vec3& pos, glm::vec3 spPos, glm::vec3 spNormal, float spR)
 {
-	glm::vec3 oc = -spPos;
-	float b = dot(oc, pos);
-	float c = dot(oc, oc) - spR * spR;
+	const float vertexSphereDistance = glm::length(pos - spPos);
 
-	float t, d = b * b - c;
-	if (d <= 0)
+	if (vertexSphereDistance - spR <= 0.0f)
 	{
+		const float depth = fabs(vertexSphereDistance - spR) != 0.0f ? fabs(vertexSphereDistance - spR) : epsilon;
+		const glm::vec3 intersectionPoint = spPos + spNormal * spR;
+
+		if (!isfinite(depth))
+		{
+			throw std::runtime_error("non-finite depth");
+		}
+
+		return std::pair<glm::vec3, float>(intersectionPoint, depth);
+	}
+	else
 		return std::pair<glm::vec3, float>(glm::vec3(0.0f), 0.0f);
-	}
-
-	d = sqrt(d), t = -b - d;
-	bool hit = t < glm::length(pos) && t > 0;
-	if (hit)
-	{
-		return std::pair<glm::vec3, float>(pos - glm::normalize(pos) * fabs(t - glm::length(pos)),
-			fabs(t - glm::length(pos)));
-	}
-
-	// we're outside; safe to skip option 2
-	if (c > 0)
-	{
-		return std::pair<glm::vec3, float>(glm::vec3(0.0f), 0.0f);
-	};
-
-	t = d - b, hit = t < glm::length(pos) && t > 0;
-	if (hit)
-	{
-		return std::pair<glm::vec3, float>(pos - glm::normalize(pos) * fabs(t - glm::length(pos)),
-			fabs(t - glm::length(pos)));
-	}
-
-	return std::pair<glm::vec3, float>(glm::vec3(0.0f), 0.0f);
 }

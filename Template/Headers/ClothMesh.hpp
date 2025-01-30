@@ -1,16 +1,19 @@
 #pragma once
 
 #include <Shader.hpp>
+#include <Sphere.hpp>
 #include <ExtraMath.hpp>
 #include <vector>
 #include <array>
 #include <direct.h>
 #include <glm/glm.hpp>
 
+//#define SPHERE_COLLISION
+
 #define GRAVITY 0.003f
 #define VERLET_STEPS 3
 //#define CONSTRAINT_STEPS 4
-#define CONSTRAINT_STEPS 6
+#define CONSTRAINT_STEPS 10
 
 struct SimpleVertex {
 	glm::vec3 pos;
@@ -218,6 +221,11 @@ struct ClothMesh {
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + gravity * dt;
 				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + gravity;
 
+				if (!isfinite(glm::length(vertices[x + y * gridRes].pos)))
+				{
+					throw std::runtime_error("gravity issue");
+				}
+
 				preVertices[x + y * gridRes].pos = currentPos;
 
 				// if (Rand( 10 ) < 0.03f) grid( x, y ).pos += float2( Rand( 0.02f + magic ), Rand( 0.12f ) );
@@ -233,11 +241,9 @@ struct ClothMesh {
 				{
 					glm::vec3 pos = vertices[x + y * gridRes].pos;
 
-					// use springs to four neighbouring points
+					// Use springs constraint vertices
 					for (int linknr = 0; linknr < 4; linknr++)
 					{
-						//Point& neighbour = grid( x + xoffset[linknr], y + yoffset[linknr] );
-
 						const unsigned int neighborIndex = x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes;
 						
 						glm::vec3 neighbor = vertices[neighborIndex].pos;
@@ -245,14 +251,13 @@ struct ClothMesh {
 						float distance = glm::length(neighbor - pos);
 						if (!isfinite(distance))
 						{
-							// warning: this happens; sometimes vertex positions 'explode'.
 							// TODO: CLAMP!!!
 							vertices[x + y * gridRes].pos = preVertices[x + y * gridRes].pos;
 							continue;
 						}
 						if (distance > restLengths[restMap.at(x + y * gridRes)][linknr])
 						{
-							// pull points together
+							// Pull vertices closer
 							float force = distance / (restLengths[restMap.at(x + y * gridRes)][linknr]) - 1;
 							glm::vec3 direction = neighbor - pos;
 							//glm::vec3 direction = glm::normalize(neighbor - pos);
@@ -286,14 +291,13 @@ struct ClothMesh {
 				float distance = glm::length(neighbor - leftPos);
 				if (!isfinite(distance))
 				{
-					// warning: this happens; sometimes vertex positions 'explode'.
 					// TODO: CLAMP!!!
 					vertices[(gridRes - 1) * gridRes].pos = preVertices[(gridRes - 1) * gridRes].pos;
 					continue;
 				}
 				if (distance > leftCornerRestLengths[index])
 				{
-					// pull points together
+					// Pull vertices closer
 					float force = distance / (leftCornerRestLengths[index]) - 1;
 					glm::vec3 direction = neighbor - leftPos;
 					//glm::vec3 direction = glm::normalize(neighbor - leftPos);
@@ -317,14 +321,13 @@ struct ClothMesh {
 				float distance = glm::length(neighbor - rightPos);
 				if (!isfinite(distance))
 				{
-					// warning: this happens; sometimes vertex positions 'explode'.
 					// TODO: CLAMP!!!
 					vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos = preVertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos;
 					continue;
 				}
 				if (distance > rightCornerRestLengths[index])
 				{
-					// pull points together
+					// Pull vertices closer
 					float force = distance / (rightCornerRestLengths[index]) - 1;
 					glm::vec3 direction = neighbor - rightPos;
 					//glm::vec3 direction = glm::normalize(neighbor - rightPos);
@@ -353,14 +356,13 @@ struct ClothMesh {
 					float distance = glm::length(neighbor - pos);
 					if (!isfinite(distance))
 					{
-						// warning: this happens; sometimes vertex positions 'explode'.
 						// TODO: CLAMP!!!
 						vertices[y * gridRes].pos = preVertices[y * gridRes].pos;
 						continue;
 					}
 					if (distance > leftRestLengths[y - 1][index])
 					{
-						// pull points together
+						// Pull vertices closer
 						float force = distance / (leftRestLengths[y - 1][index]) - 1;
 						glm::vec3 direction = neighbor - pos;
 						//glm::vec3 direction = glm::normalize(neighbor - pos);
@@ -384,14 +386,13 @@ struct ClothMesh {
 					float distance = glm::length(neighbor - pos);
 					if (!isfinite(distance))
 					{
-						// warning: this happens; sometimes vertex positions 'explode'.
 						// TODO: CLAMP!!!
 						vertices[gridRes - 1 + y * gridRes].pos = preVertices[gridRes - 1 + y * gridRes].pos;
 						continue;
 					}
 					if (distance > rightRestLengths[y - 1][index])
 					{
-						// pull points together
+						// Pull vertices closer
 						float force = distance / (rightRestLengths[y - 1][index]) - 1;
 						glm::vec3 direction = neighbor - pos;
 						//glm::vec3 direction = glm::normalize(neighbor - pos);
@@ -423,10 +424,16 @@ struct ClothMesh {
 				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
 				const glm::vec3 prevPos = preVertices[x + y * gridRes].pos;
 
-				const glm::vec3 dragDirection = -(currentPos - prevPos);
+				//const glm::vec3 dragDirection = -(currentPos - prevPos);
+				const glm::vec3 dragDirection = prevPos - currentPos;
 
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag * dt;
 				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag;
+
+				if (!isfinite(glm::length(vertices[x + y * gridRes].pos)))
+				{
+					throw std::runtime_error("drag issue");
+				}
 
 				preVertices[x + y * gridRes].pos = currentPos;
 			}
@@ -443,13 +450,40 @@ struct ClothMesh {
 				const glm::vec3 windDirection = glm::normalize(Random3f(-1.0f, 1.0f));
 
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind * dt;
+
+				if (!isfinite(glm::length(vertices[x + y * gridRes].pos)))
+				{
+					throw std::runtime_error("wind issue");
+				}
+
 				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind;
 
 				preVertices[x + y * gridRes].pos = currentPos;
 			}
 	}
 
-	void Simulate(bool windFlag, float wind, bool dragFlag, float drag, float dt)
+	void Collide(glm::mat4 modelMatrix, float dt)
+	{
+		// TODO: Remove hardcoded sphere!
+		Sphere sphere(glm::vec3(2.0f, 1.0f, 0.0f), 1.0f);
+
+		for (size_t y = 1; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
+
+				//std::pair<bool, glm::vec3> collisionData = sphere.CheckVertexCollision(vertices[x + y * gridRes].pos, glm::mat4(1.0f));
+				std::pair<bool, glm::vec3> collisionData = sphere.CheckVertexCollision(vertices[x + y * gridRes].pos, modelMatrix);
+
+				if (collisionData.first)
+				{
+					vertices[x + y * gridRes].pos += (currentPos - preVertices[x + y * gridRes].pos) + glm::normalize(collisionData.second) * dt;
+					preVertices[x + y * gridRes].pos = currentPos;
+				}
+			}
+	}
+
+	void Simulate(bool windFlag, float wind, bool dragFlag, float drag, glm::mat4 modelMatrix, float dt)
 	{
 		for (int step = 0; step < VERLET_STEPS; step++)
 		{
@@ -460,6 +494,10 @@ struct ClothMesh {
 
 			if (windFlag)
 				AddWind(wind, dt);
+
+#ifdef SPHERE_COLLISION
+			Collide(modelMatrix, dt);
+#endif // SPHERE_COLLISION
 
 			ApplyConstraints(dt);
 		}

@@ -34,10 +34,10 @@ void GUI::Init(size_t nModels)
     modelSets[2].scale[2] = 0.5f;
 
     // Initialize cloth settings
+    clothSettings.translation[1] = 4.0f;
     clothSettings.scale[0] = 1.0f;
     clothSettings.scale[1] = 1.0f;
     clothSettings.scale[2] = 1.0f;
-
 }
 
 void GUI::Render()

@@ -9,6 +9,7 @@
 #include <ShadowCubemap.hpp>
 #include <CustomModel.hpp>
 #include <ClothMesh.hpp>
+#include <Tests.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -330,6 +331,11 @@ int main(int argc, char * argv[]) {
     // Seed RNGs
     srand(static_cast <unsigned> (time(0)));
 
+    // Test sphere intersections
+    //SphereIntersectionTesting();
+
+    //return true;
+
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false)
     {
@@ -390,7 +396,7 @@ int main(int argc, char * argv[]) {
         if (settings.run_sim)
         {
             cloth.Simulate(settings.sim_wind, settings.sim_wind_amount, settings.sim_drag, settings.sim_drag_amount,
-                static_cast<float>(timer.GetData().DeltaTime) * settings.sim_speed);
+                gui.clothSettings.GetModelMatrix(), static_cast<float>(timer.GetData().DeltaTime) * settings.sim_speed);
             cloth.UpdateVertices(currentFrame);
         }
         if (gui.clothSettings.enabled)
