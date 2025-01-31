@@ -44,7 +44,8 @@ struct ClothMesh {
 	unsigned int textureId;
 	std::map<unsigned int, unsigned int> restMap;	// Maps vertex coordinates (x + y * gridRes) to restLength indices
 
-	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, unsigned int gridRes, float initHeight = 2.0f)
+	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, unsigned int gridRes,
+		std::string textureFile = "clothTexture.jpg", float initHeight = 2.0f)
 		:
 		width(width), depth(depth), gridRes(gridRes)
 	{
@@ -52,7 +53,8 @@ struct ClothMesh {
 		char buffer[1024];
 		getcwd(buffer, 1024);
 		std::string texturePath(buffer);
-		texturePath += "\\..\\textures\\clothTexture.jpg";
+		//texturePath += "\\..\\textures\\clothTexture.jpg";
+		texturePath += "\\..\\textures\\" + textureFile;
 
 		textureId = TextureFromFile(texturePath.c_str(), false);
 
