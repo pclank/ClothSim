@@ -428,6 +428,7 @@ struct ClothMesh {
 
 				//const glm::vec3 dragDirection = -(currentPos - prevPos);
 				const glm::vec3 dragDirection = prevPos - currentPos;
+				//const glm::vec3 dragDirection = (prevPos - currentPos) * (prevPos - currentPos);
 
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag * dt;
 				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag;

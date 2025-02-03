@@ -1,16 +1,15 @@
-# GlitterCL
-![Screenshot](https://i.imgur.com/8bSCwwO.png)
+# ClothSimulation
+![Screenshot](https://imgur.com/a/zkEMvI8)
 
 ## Summary
-Glitter is a dead simple boilerplate for OpenGL, intended as a starting point for the tutorials on [learnopengl.com](http://www.learnopengl.com) and [open.gl](https://open.gl). Glitter compiles and statically links every required library, so you can jump right into doing what you probably want: how to get started with OpenGL.
-This repo contains the interoperability between OpenGL and OpenCL so you do not have to go through the pain of setting it up.
+A 3D cloth simulation (currently on the CPU and not optimized). It uses classic Verlet integration.
 
 ## Getting Started
-GlitterCL has a single dependency: [cmake](http://www.cmake.org/download/), which is used to generate platform-specific makefiles or project files. Start by cloning this repository, making sure to pass the `--recursive` flag to grab all the dependencies. If you forgot, then you can `git submodule update --init` instead.
+Has a single dependency: [cmake](http://www.cmake.org/download/), which is used to generate platform-specific makefiles or project files. Start by cloning this repository, making sure to pass the `--recursive` flag to grab all the dependencies. If you forgot, then you can `git submodule update --init` instead.
 
 ```bash
-git clone --recursive https://github.com/pclank/GlitterCL
-cd Glitter
+git clone --recursive https://github.com/pclank/ClothSim
+cd ClothSim
 cd Build
 ```
 
@@ -23,7 +22,10 @@ cmake -G "Visual Studio 14 Win64" ..
 ...
 ```
 
-If you compile and run, you should have a working renderer of a single texture on a quad, where the colors of the texture are affected by an OpenCL kernel.
+If you compile and run, you should have a working renderer with a few objects loaded and the cloth generated with some settings.
+
+## Running
+You can use WASD, E and Q to move around the scene, spacebar enable/disable the cursor and camera movement, and P to start/stop the simulation. Further controls are provided by the GUI.
 
 ## License
 >The MIT License (MIT)
