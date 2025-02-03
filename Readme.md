@@ -1,5 +1,5 @@
 # ClothSimulation
-![Screenshot](https://imgur.com/a/zkEMvI8)
+![Screenshot](https://i.imgur.com/1gwuWPi.png)
 
 ## Summary
 A 3D cloth simulation (currently on the CPU and not optimized). It uses classic Verlet integration.
