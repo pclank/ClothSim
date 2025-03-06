@@ -27,6 +27,8 @@ struct SimpleVertex {
 
 const glm::vec3 gravity(0.0f, -GRAVITY, 0.0f);
 
+const float slack = 1.15f;
+
 const int xOffsets[4] = { 1, -1, 0, 0 };
 const int yOffsets[4] = { 0, 0, 1, -1 };
 
@@ -169,7 +171,7 @@ struct ClothMesh {
 				for (int c = 0; c < 4; c++)
 				{
 					restLengths[restIndex][c] = glm::length(vertices[x + y * gridRes].pos -
-						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * 1.15f;
+						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * slack;
 				}
 
 				// Add to map
@@ -182,16 +184,16 @@ struct ClothMesh {
 		for (unsigned int y = 1; y < gridRes - 1; y++)
 		{
 			std::array<float, 3> tmpLengths = {
-				glm::length(vertices[y * gridRes].pos - vertices[1 + y * gridRes].pos) * 1.15f,					// Right neighbor
-				glm::length(vertices[y * gridRes].pos - vertices[(y - 1) * gridRes].pos) * 1.15f,				// Top neighbor
-				glm::length(vertices[y * gridRes].pos - vertices[(y + 1) * gridRes].pos) * 1.15f				// Bottom neighbor
+				glm::length(vertices[y * gridRes].pos - vertices[1 + y * gridRes].pos) * slack,					// Right neighbor
+				glm::length(vertices[y * gridRes].pos - vertices[(y - 1) * gridRes].pos) * slack,				// Top neighbor
+				glm::length(vertices[y * gridRes].pos - vertices[(y + 1) * gridRes].pos) * slack				// Bottom neighbor
 			};
 			leftRestLengths.push_back(tmpLengths);
 
 			tmpLengths = {
-				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 2 + y * gridRes].pos) * 1.15f,			// Left neighbor
-				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 1 + (y - 1) * gridRes].pos) * 1.15f,	// Top neighbor
-				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 1 + (y + 1) * gridRes].pos) * 1.15f	// Bottom neighbor
+				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 2 + y * gridRes].pos) * slack,			// Left neighbor
+				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 1 + (y - 1) * gridRes].pos) * slack,	// Top neighbor
+				glm::length(vertices[gridRes - 1 + y * gridRes].pos - vertices[gridRes - 1 + (y + 1) * gridRes].pos) * slack	// Bottom neighbor
 			};
 			rightRestLengths.push_back(tmpLengths);
 		}
@@ -199,12 +201,12 @@ struct ClothMesh {
 
 		// Calculate bottom corner rest lengths
 		leftCornerRestLengths = {
-			glm::length(vertices[(gridRes - 1) * gridRes].pos - vertices[1 + (gridRes - 1) * gridRes].pos) * 1.15f,		// Right neighbor
-			glm::length(vertices[(gridRes - 1) * gridRes].pos -	vertices[(gridRes - 2) * gridRes].pos) * 1.15f };		// Top neighbor
+			glm::length(vertices[(gridRes - 1) * gridRes].pos - vertices[1 + (gridRes - 1) * gridRes].pos) * slack,		// Right neighbor
+			glm::length(vertices[(gridRes - 1) * gridRes].pos -	vertices[(gridRes - 2) * gridRes].pos) * slack };		// Top neighbor
 
 		rightCornerRestLengths = {
-			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos - vertices[(gridRes - 2) + (gridRes - 1) * gridRes].pos) * 1.15f,		// Left neighbor
-			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos - vertices[(gridRes - 1) + (gridRes - 2) * gridRes].pos) * 1.15f };	// Top neighbor };								// Top neighbor
+			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos - vertices[(gridRes - 2) + (gridRes - 1) * gridRes].pos) * slack,		// Left neighbor
+			glm::length(vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos - vertices[(gridRes - 1) + (gridRes - 2) * gridRes].pos) * slack };	// Top neighbor };								// Top neighbor
 
 		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << triIndices.size() << " indices" << std::endl;
 	}
