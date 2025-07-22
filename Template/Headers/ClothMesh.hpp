@@ -3,6 +3,7 @@
 #include <Shader.hpp>
 #include <Sphere.hpp>
 #include <ExtraMath.hpp>
+#include <PerlinNoise.hpp>
 #include <vector>
 #include <array>
 #include <direct.h>
@@ -13,6 +14,7 @@
 
 #define CROSS_LENGTHS
 #define ANCHORS
+//#define PERLIN_NOISE
 
 #define GRAVITY 0.003f
 #define VERLET_STEPS 3
@@ -587,8 +589,14 @@ struct ClothMesh {
 				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
 				const glm::vec3 prevPos = preVertices[x + y * gridRes].pos;
 
-				vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind * dt;
+				// Perlin Noise test
+				//std::cout << PerlinNoise(currentPos.x, currentPos.y, 8) << std::endl;
 
+#ifdef PERLIN_NOISE
+				vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind * dt * PerlinNoise(currentPos.x, currentPos.y, 8);
+#else
+				vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind * dt;
+#endif // PERLIN_NOISE
 #ifdef ANCHORS
 				unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
 

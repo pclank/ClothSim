@@ -325,7 +325,8 @@ int main(int argc, char * argv[]) {
     CustomModel testCustom(customDebug);
 
     // Cloth mesh
-    ClothMesh cloth(5.0f, 5.0f, 8, 8, 16, "clothPineapple.png");
+    //ClothMesh cloth(5.0f, 5.0f, 8, 8, 16, "clothPineapple.png");
+    ClothMesh cloth(5.0f, 5.0f, 8, 8, 32, "clothPineapple.png");
     //ClothMesh cloth(5.0f, 5.0f, 8, 8, 16, "clothFabric.png");
 
     // Seed RNGs
