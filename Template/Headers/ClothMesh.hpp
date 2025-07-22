@@ -11,6 +11,9 @@
 //#define SPHERE_COLLISION
 #define HANDLE_BOTTOM_CORNERS
 
+#define CROSS_LENGTHS
+#define ANCHORS
+
 #define GRAVITY 0.003f
 #define VERLET_STEPS 3
 //#define CONSTRAINT_STEPS 4
@@ -30,8 +33,8 @@ const glm::vec3 gravity(0.0f, -GRAVITY, 0.0f);
 
 const float slack = 1.15f;
 
-const int xOffsets[4] = { 1, -1, 0, 0 };
-const int yOffsets[4] = { 0, 0, 1, -1 };
+const int xOffsets[8] = { 1, -1, 0, 0, 1, -1, 1, -1 };
+const int yOffsets[8] = { 0, 0, 1, -1, 1,  1, -1, -1 };
 
 struct ClothMesh {
 	float width, depth, widthStep, depthStep, dU, dV;
@@ -39,13 +42,23 @@ struct ClothMesh {
 	std::vector<SimpleVertex> vertices, preVertices, fixedVertices;
 	std::vector<glm::vec2> texCoords;
 	std::vector<unsigned int> indices, triIndices;
+#ifdef CROSS_LENGTHS
+	std::vector<std::array<float, 8>> restLengths;				// 8 (except edges) initial distances to neigthbors
+#else
 	std::vector<std::array<float, 4>> restLengths;				// 4 (except edges) initial distances to neigthbors
+#endif // CROSS_LENGTHS
+#ifdef ANCHORS
+	std::vector<float> anchorLengths;
+	std::vector<unsigned int> anchorIndices;
+#endif // ANCHORS
+
 	std::array<float, 2> leftCornerRestLengths, rightCornerRestLengths;
 	std::vector<std::array<float, 3>> leftRestLengths, rightRestLengths;
 	unsigned int VAO, VBO, EBO;
 	unsigned int gridRes;
 	unsigned int textureId;
 	std::map<unsigned int, unsigned int> restMap;	// Maps vertex coordinates (x + y * gridRes) to restLength indices
+	std::map<unsigned int, unsigned int> vertexAnchorMap;	// Maps vertex coordinates (x + y * gridRes) to anchorLength and anchorIndices indices
 
 	ClothMesh(float width, float depth, unsigned int wP, unsigned int dP, unsigned int gridRes,
 		std::string textureFile = "clothTexture.jpg", float initHeight = 2.0f)
@@ -161,15 +174,54 @@ struct ClothMesh {
 		// Add fixed vertex positions
 		for (size_t x = 0; x < gridRes; x++)
 			fixedVertices.push_back(vertices[x]);
+		
+#ifdef ANCHORS
+		anchorLengths.resize(gridRes * (gridRes - 1));
+		anchorIndices.resize(gridRes * (gridRes - 1));
+
+		// Calculate anchor distances
+		unsigned int vertexIndex = 0;
+		for (size_t y = 1; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				// Find nearest anchor
+				float minLength = 1e30f;
+				unsigned int minIndex = 0;
+
+				for (size_t anchor = 0; anchor < gridRes; anchor++)
+				{
+					float currentLength = glm::length(fixedVertices[anchor].pos - vertices[x + y * gridRes].pos);
+					if (currentLength < minLength)
+					{
+						minLength = currentLength;
+						minIndex = anchor;
+					}
+				}
+
+				// Add to map
+				vertexAnchorMap[x + y * gridRes] = vertexIndex;
+
+				anchorLengths[vertexIndex] = minLength;
+				anchorIndices[vertexIndex] = minIndex;
+
+				vertexIndex++;
+			}
+
+#endif // ANCHORS
 
 		// Calculate rest length
 		restLengths.resize(vertices.size() - 4 * gridRes + 4);
+
 		unsigned int restIndex = 0;
 		for (size_t y = 1; y < gridRes - 1; y++)
 			for (size_t x = 1; x < gridRes - 1; x++)
 			{
-				// 15% slack
+				// Slack
+#ifdef CROSS_LENGTHS
+				for (int c = 0; c < 8; c++)
+#else
 				for (int c = 0; c < 4; c++)
+#endif
 				{
 					restLengths[restIndex][c] = glm::length(vertices[x + y * gridRes].pos -
 						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * slack;
@@ -226,9 +278,25 @@ struct ClothMesh {
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + gravity * dt;
 				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + gravity;
 
+#ifdef ANCHORS
+				unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
+
+				const float currentLength = glm::length(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+				if (currentLength > anchorLengths[anchorIndex])
+				{
+					// Clamp to proper distance from anchor
+					const float delta = fabs(currentLength - anchorLengths[anchorIndex]);
+
+					const glm::vec3 distanceVector = glm::normalize(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+					vertices[x + y * gridRes].pos += distanceVector * delta;
+				}
+#endif // ANCHORS
+
 				if (!isfinite(glm::length(vertices[x + y * gridRes].pos)))
 				{
-					throw std::runtime_error("gravity issue");
+					//throw std::runtime_error("gravity issue");
+					vertices[x + y * gridRes].pos = preVertices[x + y * gridRes].pos;
+					continue;
 				}
 
 				preVertices[x + y * gridRes].pos = currentPos;
@@ -247,7 +315,11 @@ struct ClothMesh {
 					glm::vec3 pos = vertices[x + y * gridRes].pos;
 
 					// Use springs constraint vertices
+#ifdef CROSS_LENGTHS
+					for (int linknr = 0; linknr < 8; linknr++)
+#else
 					for (int linknr = 0; linknr < 4; linknr++)
+#endif // CROSS_LENGTHS
 					{
 						const unsigned int neighborIndex = x + xOffsets[linknr] + (y + yOffsets[linknr]) * gridRes;
 						
@@ -266,11 +338,19 @@ struct ClothMesh {
 							float force = distance / (restLengths[restMap.at(x + y * gridRes)][linknr]) - 1;
 							glm::vec3 direction = neighbor - pos;
 							//glm::vec3 direction = glm::normalize(neighbor - pos);
-							glm::vec3 impulse = force * direction * 0.5f;
+							//glm::vec3 impulse = force * direction * 0.5f;
+							glm::vec3 impulse = force * direction * 0.5f * dt;
 							pos += impulse;
 							neighbor -= impulse;
 							/*pos -= force * direction * 0.5f;
 							neighbor += force * direction * 0.5f;*/
+						}
+
+						if (isnan(pos.x) || isnan(pos.y) || isnan(pos.z))
+						{
+							// TODO: CLAMP!!!
+							vertices[x + y * gridRes].pos = preVertices[x + y * gridRes].pos;
+							continue;
 						}
 
 						vertices[x + y * gridRes].pos = pos;
@@ -307,11 +387,19 @@ struct ClothMesh {
 					float force = distance / (leftCornerRestLengths[index]) - 1;
 					glm::vec3 direction = neighbor - leftPos;
 					//glm::vec3 direction = glm::normalize(neighbor - leftPos);
-					glm::vec3 impulse = force * direction * 0.5f;
+					//glm::vec3 impulse = force * direction * 0.5f;
+					glm::vec3 impulse = force * direction * 0.5f * dt;
 					leftPos += impulse;
 					neighbor -= impulse;
 					/*leftPos -= force * direction * 0.5f;
 					neighbor += force * direction * 0.5f;*/
+				}
+
+				if (isnan(leftPos.x) || isnan(leftPos.y) || isnan(leftPos.z))
+				{
+					// TODO: CLAMP!!!
+					vertices[(gridRes - 1) * gridRes].pos = preVertices[(gridRes - 1) * gridRes].pos;
+					continue;
 				}
 
 				vertices[(gridRes - 1) * gridRes].pos = leftPos;
@@ -337,11 +425,19 @@ struct ClothMesh {
 					float force = distance / (rightCornerRestLengths[index]) - 1;
 					glm::vec3 direction = neighbor - rightPos;
 					//glm::vec3 direction = glm::normalize(neighbor - rightPos);
-					glm::vec3 impulse = force * direction * 0.5f;
+					//glm::vec3 impulse = force * direction * 0.5f;
+					glm::vec3 impulse = force * direction * 0.5f * dt;
 					rightPos += impulse;
 					neighbor -= impulse;
 					/*rightPos -= force * direction * 0.5f;
 					neighbor += force * direction * 0.5f;*/
+				}
+
+				if (isnan(rightPos.x) || isnan(rightPos.y) || isnan(rightPos.z))
+				{
+					// TODO: CLAMP!!!
+					vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos = preVertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos;
+					continue;
 				}
 
 				vertices[(gridRes - 1) + (gridRes - 1) * gridRes].pos = rightPos;
@@ -372,7 +468,8 @@ struct ClothMesh {
 						float force = distance / (leftRestLengths[y - 1][index]) - 1;
 						glm::vec3 direction = neighbor - pos;
 						//glm::vec3 direction = glm::normalize(neighbor - pos);
-						glm::vec3 impulse = force * direction * 0.5f;
+						//glm::vec3 impulse = force * direction * 0.5f;
+						glm::vec3 impulse = force * direction * 0.5f * dt;
 						pos += impulse;
 						neighbor -= impulse;
 						/*pos -= force * direction * 0.5f;
@@ -402,7 +499,8 @@ struct ClothMesh {
 						float force = distance / (rightRestLengths[y - 1][index]) - 1;
 						glm::vec3 direction = neighbor - pos;
 						//glm::vec3 direction = glm::normalize(neighbor - pos);
-						glm::vec3 impulse = force * direction * 0.5f;
+						//glm::vec3 impulse = force * direction * 0.5f;
+						glm::vec3 impulse = force * direction * 0.5f * dt;
 						pos += impulse;
 						neighbor -= impulse;
 						/*pos -= force * direction * 0.5f;
@@ -414,6 +512,24 @@ struct ClothMesh {
 				}
 			}
 #endif // HANDLE_BOTTOM_CORNERS
+
+#ifdef ANCHORS
+			for (int y = 1; y < gridRes; y++)
+				for (int x = 0; x < gridRes; x++)
+				{
+					unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
+
+					const float currentLength = glm::length(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+					if (currentLength > anchorLengths[anchorIndex])
+					{
+						// Clamp to proper distance from anchor
+						const float delta = fabs(currentLength - anchorLengths[anchorIndex]);
+
+						const glm::vec3 distanceVector = glm::normalize(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+						vertices[x + y * gridRes].pos += distanceVector * delta;
+					}
+				}
+#endif // ANCHORS
 
 			// Fixed vertices
 			for (int x = 0; x < gridRes; x++)
@@ -438,6 +554,20 @@ struct ClothMesh {
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag * dt;
 				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag;
 
+#ifdef ANCHORS
+				unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
+
+				const float currentLength = glm::length(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+				if (currentLength > anchorLengths[anchorIndex])
+				{
+					// Clamp to proper distance from anchor
+					const float delta = fabs(currentLength - anchorLengths[anchorIndex]);
+
+					const glm::vec3 distanceVector = glm::normalize(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+					vertices[x + y * gridRes].pos += distanceVector * delta;
+				}
+#endif // ANCHORS
+
 				if (!isfinite(glm::length(vertices[x + y * gridRes].pos)))
 				{
 					throw std::runtime_error("drag issue");
@@ -447,17 +577,31 @@ struct ClothMesh {
 			}
 	}
 
-	void AddWind(float wind, float dt)
+	void AddWind(float wind, float dt, bool useManualDirection = false, glm::vec3 manualDirection = glm::vec3(0.0f))
 	{
+		const glm::vec3 windDirection = (useManualDirection) ? glm::normalize(manualDirection) : glm::normalize(Random3f(-1.0f, 1.0f));
+
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
 			{
 				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
 				const glm::vec3 prevPos = preVertices[x + y * gridRes].pos;
 
-				const glm::vec3 windDirection = glm::normalize(Random3f(-1.0f, 1.0f));
-
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + windDirection * wind * dt;
+
+#ifdef ANCHORS
+				unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
+
+				const float currentLength = glm::length(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+				if (currentLength > anchorLengths[anchorIndex])
+				{
+					// Clamp to proper distance from anchor
+					const float delta = fabs(currentLength - anchorLengths[anchorIndex]);
+
+					const glm::vec3 distanceVector = glm::normalize(fixedVertices[anchorIndices[anchorIndex]].pos - vertices[x + y * gridRes].pos);
+					vertices[x + y * gridRes].pos += distanceVector * delta;
+				}
+#endif // ANCHORS
 
 				if (!isfinite(glm::length(vertices[x + y * gridRes].pos)))
 				{
@@ -491,17 +635,17 @@ struct ClothMesh {
 			}
 	}
 
-	void Simulate(bool windFlag, float wind, bool dragFlag, float drag, glm::mat4 modelMatrix, float dt)
+	void Simulate(bool windFlag, float wind, bool dragFlag, float drag, bool useManualWind, glm::vec3 manualWindDirection, glm::mat4 modelMatrix, float dt)
 	{
 		for (int step = 0; step < VERLET_STEPS; step++)
 		{
 			ApplyGravity(dt);
 
+			if (windFlag)
+				AddWind(wind, dt, useManualWind, manualWindDirection);
+
 			if (dragFlag)
 				AddDrag(drag, dt);
-
-			if (windFlag)
-				AddWind(wind, dt);
 
 #ifdef SPHERE_COLLISION
 			Collide(modelMatrix, dt);

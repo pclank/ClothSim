@@ -395,7 +395,8 @@ int main(int argc, char * argv[]) {
         // Render cloth
         if (settings.run_sim)
         {
-            cloth.Simulate(settings.sim_wind, settings.sim_wind_amount, settings.sim_drag, settings.sim_drag_amount,
+            cloth.Simulate(settings.sim_wind, settings.sim_wind_amount, settings.sim_drag, settings.sim_drag_amount, settings.manual_wind_dir,
+                glm::vec3(settings.wind_dir[0], settings.wind_dir[1], settings.wind_dir[2]),
                 gui.clothSettings.GetModelMatrix(), static_cast<float>(timer.GetData().DeltaTime) * settings.sim_speed);
             cloth.UpdateVertices(currentFrame);
         }
