@@ -9,6 +9,7 @@
 #include <glm/glm.hpp>
 
 //#define SPHERE_COLLISION
+#define HANDLE_BOTTOM_CORNERS
 
 #define GRAVITY 0.003f
 #define VERLET_STEPS 3
@@ -277,6 +278,7 @@ struct ClothMesh {
 					}
 				}
 
+#ifdef HANDLE_BOTTOM_CORNERS
 			// Constrain bottom corners
 			const unsigned int rightIndex = 1 + (gridRes - 1) * gridRes;
 			const unsigned int topLeftIndex = (gridRes - 2) * gridRes;
@@ -411,6 +413,7 @@ struct ClothMesh {
 					vertices[neighborIndex].pos = neighbor;
 				}
 			}
+#endif // HANDLE_BOTTOM_CORNERS
 
 			// Fixed vertices
 			for (int x = 0; x < gridRes; x++)
