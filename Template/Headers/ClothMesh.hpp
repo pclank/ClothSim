@@ -156,6 +156,29 @@ struct ClothMesh {
 		//preVertices = std::vector<glm::vec3>(vertices);
 		preVertices = std::vector<SimpleVertex>(vertices);
 
+#ifdef SIMD
+		VertexPosEven_x.resize(vertices.size() / 2);
+		VertexPosEven_y.resize(vertices.size() / 2);
+		VertexPosEven_z.resize(vertices.size() / 2);
+		VertexPosOdd_x.resize(vertices.size() / 2);
+		VertexPosOdd_y.resize(vertices.size() / 2);
+		VertexPosOdd_z.resize(vertices.size() / 2);
+
+		VertexPrevEven_x.resize(vertices.size() / 2);
+		VertexPrevEven_y.resize(vertices.size() / 2);
+		VertexPrevEven_z.resize(vertices.size() / 2);
+		VertexPrevOdd_x.resize(vertices.size() / 2);
+		VertexPrevOdd_y.resize(vertices.size() / 2);
+		VertexPrevOdd_z.resize(vertices.size() / 2);
+
+		VertexFixedEven_x.resize(gridRes);
+		VertexFixedEven_y.resize(gridRes);
+		VertexFixedEven_z.resize(gridRes);
+		VertexFixedOdd_x.resize(gridRes);
+		VertexFixedOdd_y.resize(gridRes);
+		VertexFixedOdd_z.resize(gridRes);
+#endif // SIMD
+
 		/*for (size_t i = 0; i < preVertices.size(); i++)
 			std::cout << preVertices[i].x << " | " << preVertices[i].y << " | " << preVertices[i].z << std::endl;*/
 
@@ -283,28 +306,6 @@ struct ClothMesh {
 
 	inline void CopyToSIMD()
 	{
-		// TODO: Resize properly!
-		VertexPosEven_x.resize(vertices.size());
-		VertexPosEven_y.resize(vertices.size());
-		VertexPosEven_z.resize(vertices.size());
-		VertexPosOdd_x.resize(vertices.size());
-		VertexPosOdd_y.resize(vertices.size());
-		VertexPosOdd_z.resize(vertices.size());
-
-		VertexPrevEven_x.resize(vertices.size());
-		VertexPrevEven_y.resize(vertices.size());
-		VertexPrevEven_z.resize(vertices.size());
-		VertexPrevOdd_x.resize(vertices.size());
-		VertexPrevOdd_y.resize(vertices.size());
-		VertexPrevOdd_z.resize(vertices.size());
-
-		VertexFixedEven_x.resize(gridRes);
-		VertexFixedEven_y.resize(gridRes);
-		VertexFixedEven_z.resize(gridRes);
-		VertexFixedOdd_x.resize(gridRes);
-		VertexFixedOdd_y.resize(gridRes);
-		VertexFixedOdd_z.resize(gridRes);
-
 		for (size_t y = 0; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
 			{
@@ -511,6 +512,18 @@ struct ClothMesh {
 	{
 		for (int i = 0; i < CONSTRAINT_STEPS; i++)
 		{
+
+//#ifdef SIMD
+//			CopyToSIMD();
+//
+//			for (int y = 1; y < gridRes - 1; y++)
+//				for (int x = 1; x < gridRes - 1; x++)
+//
+//			CopyFromSIMD();
+//			
+//			return;
+//#endif // SIMD
+
 			for (int y = 1; y < gridRes - 1; y++)
 				for (int x = 1; x < gridRes - 1; x++)
 				{
