@@ -44,6 +44,8 @@ struct SceneSettings {
     bool run_sim = false;
     bool sim_drag = false;
     bool sim_wind = false;
+    bool manual_wind_dir = true;
+    float wind_dir[3] = { 1.0f, 0.0f, 0.0f };
 };
 
 /// <summary>
