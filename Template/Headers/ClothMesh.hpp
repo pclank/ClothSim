@@ -12,9 +12,10 @@
 //#define SPHERE_COLLISION
 #define HANDLE_BOTTOM_CORNERS
 
-#define CROSS_LENGTHS
-#define ANCHORS
+//#define CROSS_LENGTHS
+//#define ANCHORS
 //#define PERLIN_NOISE
+#define SIMD
 
 #define GRAVITY 0.003f
 #define VERLET_STEPS 3
@@ -53,6 +54,13 @@ struct ClothMesh {
 	std::vector<float> anchorLengths;
 	std::vector<unsigned int> anchorIndices;
 #endif // ANCHORS
+
+#ifdef SIMD
+	std::vector<float> VertexPosEven_x, VertexPosOdd_x, VertexPosEven_y, VertexPosOdd_y, VertexPosEven_z, VertexPosOdd_z;	// CurrentPos
+	std::vector<float> VertexPrevEven_x, VertexPrevOdd_x, VertexPrevEven_y, VertexPrevOdd_y, VertexPrevEven_z, VertexPrevOdd_z;	// PrevPos
+	std::vector<float> VertexFixedEven_x, VertexFixedOdd_x, VertexFixedEven_y, VertexFixedOdd_y, VertexFixedEven_z, VertexFixedOdd_z;	// FixedPoints
+#endif // SIMD
+
 
 	std::array<float, 2> leftCornerRestLengths, rightCornerRestLengths;
 	std::vector<std::array<float, 3>> leftRestLengths, rightRestLengths;
@@ -266,11 +274,195 @@ struct ClothMesh {
 		std::cout << "Created cloth mesh with " << vertices.size() << " vertices and " << triIndices.size() << " indices" << std::endl;
 	}
 
+#ifdef SIMD
+
+	inline void CopyToSIMD()
+	{
+		// TODO: Resize properly!
+		VertexPosEven_x.resize(vertices.size());
+		VertexPosEven_y.resize(vertices.size());
+		VertexPosEven_z.resize(vertices.size());
+		VertexPosOdd_x.resize(vertices.size());
+		VertexPosOdd_y.resize(vertices.size());
+		VertexPosOdd_z.resize(vertices.size());
+
+		VertexPrevEven_x.resize(vertices.size());
+		VertexPrevEven_y.resize(vertices.size());
+		VertexPrevEven_z.resize(vertices.size());
+		VertexPrevOdd_x.resize(vertices.size());
+		VertexPrevOdd_y.resize(vertices.size());
+		VertexPrevOdd_z.resize(vertices.size());
+
+		VertexFixedEven_x.resize(gridRes);
+		VertexFixedEven_y.resize(gridRes);
+		VertexFixedEven_z.resize(gridRes);
+		VertexFixedOdd_x.resize(gridRes);
+		VertexFixedOdd_y.resize(gridRes);
+		VertexFixedOdd_z.resize(gridRes);
+
+		for (size_t y = 0; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				size_t index = x + y * gridRes;
+
+				// Even vertices
+				if (index % 2 == 0)
+				{
+					VertexPosEven_x[index / 2] = vertices[index].pos.x;
+					VertexPosEven_y[index / 2] = vertices[index].pos.y;
+					VertexPosEven_z[index / 2] = vertices[index].pos.z;
+
+					VertexPrevEven_x[index / 2] = preVertices[index].pos.x;
+					VertexPrevEven_y[index / 2] = preVertices[index].pos.y;
+					VertexPrevEven_z[index / 2] = preVertices[index].pos.z;
+
+					// Fixed points
+					if (y == 0)
+					{
+						VertexPrevEven_x[index / 2] = vertices[index].pos.x;
+						VertexPrevEven_y[index / 2] = vertices[index].pos.y;
+						VertexPrevEven_z[index / 2] = vertices[index].pos.z;
+					}
+				}
+				// Odd vertices
+				else
+				{
+					VertexPosOdd_x[(index - 1) / 2] = vertices[index].pos.x;
+					VertexPosOdd_y[(index - 1) / 2] = vertices[index].pos.y;
+					VertexPosOdd_z[(index - 1) / 2] = vertices[index].pos.z;
+
+					VertexPrevOdd_x[(index - 1) / 2] = preVertices[index].pos.x;
+					VertexPrevOdd_y[(index - 1) / 2] = preVertices[index].pos.y;
+					VertexPrevOdd_z[(index - 1) / 2] = preVertices[index].pos.z;
+
+					// Fixed points
+					if (y == 0)
+					{
+						VertexPrevOdd_x[(index - 1) / 2] = vertices[index].pos.x;
+						VertexPrevOdd_y[(index - 1) / 2] = vertices[index].pos.y;
+						VertexPrevOdd_z[(index - 1) / 2] = vertices[index].pos.z;
+					}
+				}
+			}
+	}
+
+	inline void CopyFromSIMD()
+	{
+		for (size_t y = 0; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				size_t index = x + y * gridRes;
+
+				// Even vertices
+				if (index % 2 == 0)
+				{
+					vertices[index].pos.x = VertexPosEven_x[index / 2];
+					vertices[index].pos.y = VertexPosEven_y[index / 2];
+					vertices[index].pos.z = VertexPosEven_z[index / 2];
+
+					preVertices[index].pos.x = VertexPrevEven_x[index / 2];
+					preVertices[index].pos.y = VertexPrevEven_y[index / 2];
+					preVertices[index].pos.z = VertexPrevEven_z[index / 2];
+				}
+				// Odd vertices
+				else
+				{
+					vertices[index].pos.x = VertexPosOdd_x[(index - 1) / 2];
+					vertices[index].pos.y = VertexPosOdd_y[(index - 1) / 2];
+					vertices[index].pos.z = VertexPosOdd_z[(index - 1) / 2];
+
+					preVertices[index].pos.x = VertexPrevOdd_x[(index - 1) / 2];
+					preVertices[index].pos.y = VertexPrevOdd_y[(index - 1) / 2];
+					preVertices[index].pos.z = VertexPrevOdd_z[(index - 1) / 2];
+				}
+			}
+	}
+
+#endif // SIMD
+
 	~ClothMesh()
 	{}
 
 	inline void ApplyGravity(float dt)
 	{
+#ifdef SIMD
+		static const __m256 gravity8 = _mm256_set1_ps(-GRAVITY);
+
+		const __m256 dt8 = _mm256_set1_ps(dt);
+
+		CopyToSIMD();
+
+		// Even points
+		float* pos_x = VertexPosEven_x.data();
+		float* pos_y = VertexPosEven_y.data();
+		float* pos_z = VertexPosEven_z.data();
+		float* prevPos_x = VertexPrevEven_x.data();
+		float* prevPos_y = VertexPrevEven_y.data();
+		float* prevPos_z = VertexPrevEven_z.data();
+		float* end = pos_x + gridRes * gridRes / 2;
+
+		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
+		{
+			__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+			__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+			__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+			__m256 prevPos_x8 = _mm256_load_ps(prevPos_x);
+			__m256 prevPos_y8 = _mm256_load_ps(prevPos_y);
+			__m256 prevPos_z8 = _mm256_load_ps(prevPos_z);
+
+			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_sub_ps(currentPos_x8, prevPos_x8));
+			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(gravity8, dt8)));
+			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_sub_ps(currentPos_z8, prevPos_z8));
+
+			// Store new
+			_mm256_store_ps(pos_x, newPos_x8);
+			_mm256_store_ps(pos_y, newPos_y8);
+			_mm256_store_ps(pos_z, newPos_z8);
+
+			// Update previous
+			_mm256_store_ps(prevPos_x, currentPos_x8);
+			_mm256_store_ps(prevPos_y, currentPos_y8);
+			_mm256_store_ps(prevPos_z, currentPos_z8);
+		}
+
+		// Odd points
+		pos_x = VertexPosOdd_x.data();
+		pos_y = VertexPosOdd_y.data();
+		pos_z = VertexPosOdd_z.data();
+		prevPos_x = VertexPrevOdd_x.data();
+		prevPos_y = VertexPrevOdd_y.data();
+		prevPos_z = VertexPrevOdd_z.data();
+		end = pos_x + gridRes * gridRes / 2;
+
+		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
+		{
+			__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+			__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+			__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+			__m256 prevPos_x8 = _mm256_load_ps(prevPos_x);
+			__m256 prevPos_y8 = _mm256_load_ps(prevPos_y);
+			__m256 prevPos_z8 = _mm256_load_ps(prevPos_z);
+
+			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_sub_ps(currentPos_x8, prevPos_x8));
+			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(gravity8, dt8)));
+			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_sub_ps(currentPos_z8, prevPos_z8));
+
+			// Store new
+			_mm256_store_ps(pos_x, newPos_x8);
+			_mm256_store_ps(pos_y, newPos_y8);
+			_mm256_store_ps(pos_z, newPos_z8);
+
+			// Update previous
+			_mm256_store_ps(prevPos_x, currentPos_x8);
+			_mm256_store_ps(prevPos_y, currentPos_y8);
+			_mm256_store_ps(prevPos_z, currentPos_z8);
+		}
+
+		CopyFromSIMD();
+
+		return;
+#endif // SIMD
+
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
 			{
