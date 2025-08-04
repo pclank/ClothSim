@@ -75,6 +75,11 @@ struct ClothMesh {
 		:
 		width(width), depth(depth), gridRes(gridRes)
 	{
+#ifdef SIMD
+		if (gridRes * gridRes % 8 != 0)
+			std::runtime_error("ERROR::AVX is enabled, but size was not a power of 8!");
+#endif // SIMD
+
 		// Load texture
 		char buffer[1024];
 		getcwd(buffer, 1024);
@@ -390,6 +395,7 @@ struct ClothMesh {
 
 		const __m256 dt8 = _mm256_set1_ps(dt);
 
+		// TODO: Should be moved to Simulate(), so that it only happens once
 		CopyToSIMD();
 
 		// Even points
@@ -458,9 +464,11 @@ struct ClothMesh {
 			_mm256_store_ps(prevPos_z, currentPos_z8);
 		}
 
+		// TODO: Should be moved to Simulate(), so that it only happens once
 		CopyFromSIMD();
 
 		return;
+
 #endif // SIMD
 
 		for (size_t y = 1; y < gridRes; y++)
@@ -735,15 +743,105 @@ struct ClothMesh {
 
 	void AddDrag(float drag, float dt)
 	{
+#ifdef SIMD
+		const __m256 drag8 = _mm256_set1_ps(drag);
+
+		const __m256 dt8 = _mm256_set1_ps(dt);
+
+		// TODO: Should be moved to Simulate(), so that it only happens once
+		CopyToSIMD();
+
+		// Even points
+		float* pos_x = VertexPosEven_x.data();
+		float* pos_y = VertexPosEven_y.data();
+		float* pos_z = VertexPosEven_z.data();
+		float* prevPos_x = VertexPrevEven_x.data();
+		float* prevPos_y = VertexPrevEven_y.data();
+		float* prevPos_z = VertexPrevEven_z.data();
+		float* end = pos_x + gridRes * gridRes / 2;
+
+		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
+		{
+			__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+			__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+			__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+			__m256 prevPos_x8 = _mm256_load_ps(prevPos_x);
+			__m256 prevPos_y8 = _mm256_load_ps(prevPos_y);
+			__m256 prevPos_z8 = _mm256_load_ps(prevPos_z);
+
+			// Calculate drag directions
+			__m256 dragDirection_x8 = _mm256_sub_ps(prevPos_x8, currentPos_x8);
+			__m256 dragDirection_y8 = _mm256_sub_ps(prevPos_y8, currentPos_y8);
+			__m256 dragDirection_z8 = _mm256_sub_ps(prevPos_z8, currentPos_z8);
+
+			// Apply drag
+			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_add_ps(_mm256_sub_ps(currentPos_x8, prevPos_x8), _mm256_mul_ps(dragDirection_x8, _mm256_mul_ps(drag8, dt8))));
+			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(dragDirection_y8, _mm256_mul_ps(drag8, dt8))));
+			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_add_ps(_mm256_sub_ps(currentPos_z8, prevPos_z8), _mm256_mul_ps(dragDirection_z8, _mm256_mul_ps(drag8, dt8))));
+
+			// Store new
+			_mm256_store_ps(pos_x, newPos_x8);
+			_mm256_store_ps(pos_y, newPos_y8);
+			_mm256_store_ps(pos_z, newPos_z8);
+
+			// Update previous
+			_mm256_store_ps(prevPos_x, currentPos_x8);
+			_mm256_store_ps(prevPos_y, currentPos_y8);
+			_mm256_store_ps(prevPos_z, currentPos_z8);
+		}
+
+		// Odd points
+		pos_x = VertexPosOdd_x.data();
+		pos_y = VertexPosOdd_y.data();
+		pos_z = VertexPosOdd_z.data();
+		prevPos_x = VertexPrevOdd_x.data();
+		prevPos_y = VertexPrevOdd_y.data();
+		prevPos_z = VertexPrevOdd_z.data();
+		end = pos_x + gridRes * gridRes / 2;
+
+		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
+		{
+			__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+			__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+			__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+			__m256 prevPos_x8 = _mm256_load_ps(prevPos_x);
+			__m256 prevPos_y8 = _mm256_load_ps(prevPos_y);
+			__m256 prevPos_z8 = _mm256_load_ps(prevPos_z);
+
+			// Calculate drag directions
+			__m256 dragDirection_x8 = _mm256_sub_ps(prevPos_x8, currentPos_x8);
+			__m256 dragDirection_y8 = _mm256_sub_ps(prevPos_y8, currentPos_y8);
+			__m256 dragDirection_z8 = _mm256_sub_ps(prevPos_z8, currentPos_z8);
+
+			// Apply drag
+			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_add_ps(_mm256_sub_ps(currentPos_x8, prevPos_x8), _mm256_mul_ps(dragDirection_x8, _mm256_mul_ps(drag8, dt8))));
+			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(dragDirection_y8, _mm256_mul_ps(drag8, dt8))));
+			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_add_ps(_mm256_sub_ps(currentPos_z8, prevPos_z8), _mm256_mul_ps(dragDirection_z8, _mm256_mul_ps(drag8, dt8))));
+
+			// Store new
+			_mm256_store_ps(pos_x, newPos_x8);
+			_mm256_store_ps(pos_y, newPos_y8);
+			_mm256_store_ps(pos_z, newPos_z8);
+
+			// Update previous
+			_mm256_store_ps(prevPos_x, currentPos_x8);
+			_mm256_store_ps(prevPos_y, currentPos_y8);
+			_mm256_store_ps(prevPos_z, currentPos_z8);
+		}
+
+		// TODO: Should be moved to Simulate(), so that it only happens once
+		CopyFromSIMD();
+
+		return;
+#endif // SIMD
+
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
 			{
 				const glm::vec3 currentPos = vertices[x + y * gridRes].pos;
 				const glm::vec3 prevPos = preVertices[x + y * gridRes].pos;
 
-				//const glm::vec3 dragDirection = -(currentPos - prevPos);
 				const glm::vec3 dragDirection = prevPos - currentPos;
-				//const glm::vec3 dragDirection = (prevPos - currentPos) * (prevPos - currentPos);
 
 				vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag * dt;
 				//vertices[x + y * gridRes].pos += (currentPos - prevPos) + dragDirection * drag;
@@ -774,6 +872,98 @@ struct ClothMesh {
 	void AddWind(float wind, float dt, bool useManualDirection = false, glm::vec3 manualDirection = glm::vec3(0.0f))
 	{
 		const glm::vec3 windDirection = (useManualDirection) ? glm::normalize(manualDirection) : glm::normalize(Random3f(-1.0f, 1.0f));
+
+#ifdef SIMD
+		const __m256 wind8 = _mm256_set1_ps(wind);
+
+		const __m256 dt8 = _mm256_set1_ps(dt);
+
+		// TODO: Should be moved to Simulate(), so that it only happens once
+		CopyToSIMD();
+
+		// Even points
+		float* pos_x = VertexPosEven_x.data();
+		float* pos_y = VertexPosEven_y.data();
+		float* pos_z = VertexPosEven_z.data();
+		float* prevPos_x = VertexPrevEven_x.data();
+		float* prevPos_y = VertexPrevEven_y.data();
+		float* prevPos_z = VertexPrevEven_z.data();
+		float* end = pos_x + gridRes * gridRes / 2;
+
+		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
+		{
+			__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+			__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+			__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+			__m256 prevPos_x8 = _mm256_load_ps(prevPos_x);
+			__m256 prevPos_y8 = _mm256_load_ps(prevPos_y);
+			__m256 prevPos_z8 = _mm256_load_ps(prevPos_z);
+
+			// Wind directions
+			__m256 windDirection_x8 = _mm256_set1_ps(windDirection.x);
+			__m256 windDirection_y8 = _mm256_set1_ps(windDirection.y);
+			__m256 windDirection_z8 = _mm256_set1_ps(windDirection.z);
+
+			// Apply wind
+			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_add_ps(_mm256_sub_ps(currentPos_x8, prevPos_x8), _mm256_mul_ps(windDirection_x8, _mm256_mul_ps(wind8, dt8))));
+			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(windDirection_y8, _mm256_mul_ps(wind8, dt8))));
+			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_add_ps(_mm256_sub_ps(currentPos_z8, prevPos_z8), _mm256_mul_ps(windDirection_z8, _mm256_mul_ps(wind8, dt8))));
+
+			// Store new
+			_mm256_store_ps(pos_x, newPos_x8);
+			_mm256_store_ps(pos_y, newPos_y8);
+			_mm256_store_ps(pos_z, newPos_z8);
+
+			// Update previous
+			_mm256_store_ps(prevPos_x, currentPos_x8);
+			_mm256_store_ps(prevPos_y, currentPos_y8);
+			_mm256_store_ps(prevPos_z, currentPos_z8);
+		}
+
+		// Odd points
+		pos_x = VertexPosOdd_x.data();
+		pos_y = VertexPosOdd_y.data();
+		pos_z = VertexPosOdd_z.data();
+		prevPos_x = VertexPrevOdd_x.data();
+		prevPos_y = VertexPrevOdd_y.data();
+		prevPos_z = VertexPrevOdd_z.data();
+		end = pos_x + gridRes * gridRes / 2;
+
+		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
+		{
+			__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+			__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+			__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+			__m256 prevPos_x8 = _mm256_load_ps(prevPos_x);
+			__m256 prevPos_y8 = _mm256_load_ps(prevPos_y);
+			__m256 prevPos_z8 = _mm256_load_ps(prevPos_z);
+
+			// Wind directions
+			__m256 windDirection_x8 = _mm256_set1_ps(windDirection.x);
+			__m256 windDirection_y8 = _mm256_set1_ps(windDirection.y);
+			__m256 windDirection_z8 = _mm256_set1_ps(windDirection.z);
+
+			// Apply wind
+			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_add_ps(_mm256_sub_ps(currentPos_x8, prevPos_x8), _mm256_mul_ps(windDirection_x8, _mm256_mul_ps(wind8, dt8))));
+			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(windDirection_y8, _mm256_mul_ps(wind8, dt8))));
+			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_add_ps(_mm256_sub_ps(currentPos_z8, prevPos_z8), _mm256_mul_ps(windDirection_z8, _mm256_mul_ps(wind8, dt8))));
+
+			// Store new
+			_mm256_store_ps(pos_x, newPos_x8);
+			_mm256_store_ps(pos_y, newPos_y8);
+			_mm256_store_ps(pos_z, newPos_z8);
+
+			// Update previous
+			_mm256_store_ps(prevPos_x, currentPos_x8);
+			_mm256_store_ps(prevPos_y, currentPos_y8);
+			_mm256_store_ps(prevPos_z, currentPos_z8);
+		}
+
+		// TODO: Should be moved to Simulate(), so that it only happens once
+		CopyFromSIMD();
+
+		return;
+#endif // SIMD
 
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
