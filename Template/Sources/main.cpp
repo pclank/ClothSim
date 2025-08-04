@@ -327,7 +327,7 @@ int main(int argc, char * argv[]) {
     // Cloth mesh
     //ClothMesh cloth(5.0f, 5.0f, 8, 8, 16, "clothPineapple.png");
     //ClothMesh cloth(5.0f, 5.0f, 16, 16, 32, "clothPineapple.png");
-    ClothMesh cloth(5.0f, 5.0f, 16, 16, 32, "ku.jpg");
+    ClothMesh cloth(5.0f, 5.0f, 16, 16, 16, "ku.jpg");
     //ClothMesh cloth(5.0f, 5.0f, 8, 8, 16, "clothFabric.png");
 
     // Seed RNGs

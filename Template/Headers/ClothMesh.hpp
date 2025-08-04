@@ -59,6 +59,13 @@ struct ClothMesh {
 	std::vector<float> VertexPosEven_x, VertexPosOdd_x, VertexPosEven_y, VertexPosOdd_y, VertexPosEven_z, VertexPosOdd_z;	// CurrentPos
 	std::vector<float> VertexPrevEven_x, VertexPrevOdd_x, VertexPrevEven_y, VertexPrevOdd_y, VertexPrevEven_z, VertexPrevOdd_z;	// PrevPos
 	std::vector<float> VertexFixedEven_x, VertexFixedOdd_x, VertexFixedEven_y, VertexFixedOdd_y, VertexFixedEven_z, VertexFixedOdd_z;	// FixedPoints
+
+	std::vector<std::array<float, 4>> restLengthsSIMD;
+	std::vector<std::array<float, 4>> restLengthsEven;
+	std::vector<std::array<float, 4>> restLengthsOdd;
+	std::map<unsigned int, unsigned int> restMapSIMD;
+
+	std::array<int, 4> neighborOffsets;
 #endif // SIMD
 
 
@@ -78,6 +85,11 @@ struct ClothMesh {
 #ifdef SIMD
 		if (gridRes * gridRes % 8 != 0)
 			std::runtime_error("ERROR::AVX is enabled, but size was not a power of 8!");
+
+		neighborOffsets[0] = 1;
+		neighborOffsets[1] = -1;
+		neighborOffsets[2] = gridRes / 2;
+		neighborOffsets[3] = -(gridRes / 2);
 #endif // SIMD
 
 		// Load texture
@@ -271,6 +283,111 @@ struct ClothMesh {
 				restIndex++;
 			}
 
+#ifdef SIMD
+		restLengthsSIMD.resize(gridRes * gridRes);
+		restLengthsEven.resize(gridRes * gridRes /2);
+		restLengthsOdd.resize(gridRes * gridRes / 2);
+
+		for (size_t y = 0; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				size_t ind = x + y * gridRes;
+				bool even = ind % 2 == 0;
+				for (int c = 0; c < 4; c++)
+				{
+					// Right
+					if (c == 0 && x == gridRes - 1)
+					{
+						if (even)
+							restLengthsEven[ind / 2][c] = 0.0f;
+						else
+							restLengthsOdd[(ind - 1) / 2][c] = 0.0f;
+
+						continue;
+					}
+					// Left
+					else if (c == 1 && ind % 2 == 0 && ind % gridRes == 0)
+					{
+						if (even)
+							restLengthsEven[ind / 2][c] = 0.0f;
+						else
+							restLengthsOdd[(ind - 1) / 2][c] = 0.0f;
+
+						continue;
+					}
+					// Down
+					else if (c == 2 && y == gridRes - 1)
+					{
+						if (even)
+							restLengthsEven[ind / 2][c] = 0.0f;
+						else
+							restLengthsOdd[(ind - 1) / 2][c] = 0.0f;
+
+						continue;
+					}
+					// Up
+					else if (c == 3 && ind < gridRes)
+					{
+						if (even)
+							restLengthsEven[ind / 2][c] = 0.0f;
+						else
+							restLengthsOdd[(ind - 1) / 2][c] = 0.0f;
+
+						continue;
+					}
+
+					if (even)
+						restLengthsEven[ind / 2][c] = glm::length(vertices[x + y * gridRes].pos -
+						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * slack;
+					else
+						restLengthsOdd[(ind - 1) / 2][c] = glm::length(vertices[x + y * gridRes].pos -
+							vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * slack;
+				}
+			}
+
+		restIndex = 0;
+		for (size_t y = 0; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				size_t ind = x + y * gridRes;
+				for (int c = 0; c < 4; c++)
+				{
+					// Right
+					if (c == 0 && x == gridRes - 1)
+					{
+						restLengthsSIMD[restIndex][c] = 0.0f;
+						continue;
+					}
+					// Left
+					else if (c == 1 && ind % 2 == 0 && ind % gridRes == 0)
+					{
+						restLengthsSIMD[restIndex][c] = 0.0f;
+						continue;
+					}
+					// Down
+					else if (c == 2 && y == gridRes - 1)
+					{
+						restLengthsSIMD[restIndex][c] = 0.0f;
+						continue;
+					}
+					// Up
+					else if (c == 3 && ind < gridRes)
+					{
+						restLengthsSIMD[restIndex][c] = 0.0f;
+						continue;
+					}
+
+					restLengthsSIMD[restIndex][c] = glm::length(vertices[x + y * gridRes].pos -
+						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * slack;
+				}
+
+				// Add to map
+				restMapSIMD[ind] = restIndex;
+
+				restIndex++;
+			}
+#endif // SIMD
+
 		// Calculate side vertices rest lengths
 		for (unsigned int y = 1; y < gridRes - 1; y++)
 		{
@@ -304,7 +421,7 @@ struct ClothMesh {
 
 #ifdef SIMD
 
-	inline void CopyToSIMD()
+	inline void CopyToSIMD(bool first = true)
 	{
 		for (size_t y = 0; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
@@ -323,7 +440,7 @@ struct ClothMesh {
 					VertexPrevEven_z[index / 2] = preVertices[index].pos.z;
 
 					// Fixed points
-					if (y == 0)
+					if (first && y == 0)
 					{
 						VertexPrevEven_x[index / 2] = vertices[index].pos.x;
 						VertexPrevEven_y[index / 2] = vertices[index].pos.y;
@@ -342,7 +459,7 @@ struct ClothMesh {
 					VertexPrevOdd_z[(index - 1) / 2] = preVertices[index].pos.z;
 
 					// Fixed points
-					if (y == 0)
+					if (first && y == 0)
 					{
 						VertexPrevOdd_x[(index - 1) / 2] = vertices[index].pos.x;
 						VertexPrevOdd_y[(index - 1) / 2] = vertices[index].pos.y;
@@ -510,19 +627,271 @@ struct ClothMesh {
 
 	inline void ApplyConstraints(float dt)
 	{
+#ifdef SIMD
+		static const __m256 one8 = _mm256_set1_ps(1.0f);
+		static const __m256 zero8 = _mm256_set1_ps(0.0f);
+		static const __m256 pointFive8 = _mm256_set1_ps(0.5f);
+		static const __m256 rightUpdateMask = _mm256_setr_ps(0, 1, 1, 1, 1, 1, 1, 1);
+		static const __m256 leftUpdateMask = _mm256_setr_ps(1, 1, 1, 1, 1, 1, 1, 0);
+
+		const __m256 dt8 = _mm256_set1_ps(dt);
+#endif // SIMD
+
 		for (int i = 0; i < CONSTRAINT_STEPS; i++)
 		{
 
-//#ifdef SIMD
-//			CopyToSIMD();
-//
-//			for (int y = 1; y < gridRes - 1; y++)
-//				for (int x = 1; x < gridRes - 1; x++)
-//
-//			CopyFromSIMD();
-//			
-//			return;
-//#endif // SIMD
+#ifdef SIMD
+			CopyToSIMD();
+
+			// TODO: Pointer should be ignoring the first row of vertices (they are fixed)!
+
+			uint32_t pointIndex = gridRes / 2;	// Skips first row
+
+			// Even points
+			float* pos_x = &VertexPosEven_x[pointIndex];
+			float* pos_y = &VertexPosEven_y[pointIndex];
+			float* pos_z = &VertexPosEven_z[pointIndex];
+			float* end = pos_x + gridRes * gridRes / 2 - gridRes / 2;
+			//float* end = &VertexPosEven_x[VertexPosEven_x.size() - 1];		// Skips final row
+
+			for (pos_x; pos_x < end; pos_x += 8, pos_y += 8, pos_z += 8, pointIndex += 8)
+			{
+				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+				__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+
+				// Update for all neighbors
+				for (int linknr = 0; linknr < 4; linknr++)
+				{
+					float* neighbor_x;
+					float* neighbor_y;
+					float* neighbor_z;
+
+					// Right Neighbor
+					if (linknr == 0)
+					{
+						neighbor_x = &VertexPosOdd_x[pointIndex];
+						neighbor_y = &VertexPosOdd_y[pointIndex];
+						neighbor_z = &VertexPosOdd_z[pointIndex];
+					}
+					// Left Neighbor
+					else if (linknr == 1)
+					{
+						neighbor_x = &VertexPosOdd_x[pointIndex - 1];
+						neighbor_y = &VertexPosOdd_y[pointIndex - 1];
+						neighbor_z = &VertexPosOdd_z[pointIndex - 1];
+					}
+					// Up/Down Neighbors
+					else
+					{
+						neighbor_x = pos_x + neighborOffsets[linknr];
+						neighbor_y = pos_y + neighborOffsets[linknr];
+						neighbor_z = pos_z + neighborOffsets[linknr];
+					}
+
+					// Calculate distance
+					__m256 neighbor_x8 = _mm256_load_ps(neighbor_x);
+					__m256 neighbor_y8 = _mm256_load_ps(neighbor_y);
+					__m256 neighbor_z8 = _mm256_load_ps(neighbor_z);
+
+					__m256 dir_x8 = _mm256_sub_ps(neighbor_x8, currentPos_x8);
+					__m256 dir_y8 = _mm256_sub_ps(neighbor_y8, currentPos_y8);
+					__m256 dir_z8 = _mm256_sub_ps(neighbor_z8, currentPos_z8);
+
+					__m256 distance8 = _mm256_sqrt_ps(_mm256_add_ps(_mm256_mul_ps(dir_x8, dir_x8), _mm256_add_ps(_mm256_mul_ps(dir_y8, dir_y8), _mm256_mul_ps(dir_z8, dir_z8))));
+
+					//// Retrieve rest lengths
+					//__m256 restLengths8 = _mm256_setr_ps(
+					//	restLengthsSIMD[restMapSIMD.at(pointIndex)][linknr], restLengthsSIMD[restMapSIMD.at((pointIndex + 2))][linknr],
+					//	restLengthsSIMD[restMapSIMD.at((pointIndex + 4))][linknr], restLengthsSIMD[restMapSIMD.at((pointIndex + 6))][linknr],
+					//	restLengthsSIMD[restMapSIMD.at((pointIndex + 8))][linknr], restLengthsSIMD[restMapSIMD.at((pointIndex + 10))][linknr],
+					//	restLengthsSIMD[restMapSIMD.at((pointIndex + 12))][linknr], restLengthsSIMD[restMapSIMD.at((pointIndex + 14))][linknr]
+					//);
+					//// Retrieve rest lengths
+					//__m256 restLengths8 = _mm256_setr_ps(
+					//	restLengthsSIMD[pointIndex * 2][linknr], restLengthsSIMD[(pointIndex + 1) * 2][linknr],
+					//	restLengthsSIMD[(pointIndex + 2) * 2][linknr], restLengthsSIMD[(pointIndex + 3) * 2][linknr],
+					//	restLengthsSIMD[(pointIndex + 4) * 2][linknr], restLengthsSIMD[(pointIndex + 5) * 2][linknr],
+					//	restLengthsSIMD[(pointIndex + 6) * 2][linknr], restLengthsSIMD[(pointIndex + 7) * 2][linknr]
+					//);
+					// Retrieve rest lengths
+					__m256 restLengths8 = _mm256_setr_ps(
+						restLengthsEven[pointIndex][linknr], restLengthsEven[pointIndex + 1][linknr],
+						restLengthsEven[pointIndex + 2][linknr], restLengthsEven[pointIndex + 3][linknr],
+						restLengthsEven[pointIndex + 4][linknr], restLengthsEven[pointIndex + 5][linknr],
+						restLengthsEven[pointIndex + 6][linknr], restLengthsEven[pointIndex + 7][linknr]
+					);
+
+					__m256 distanceMask = _mm256_cmp_ps(distance8, restLengths8, _CMP_GT_OQ);
+
+					__m256 force8 = _mm256_sub_ps(_mm256_div_ps(distance8, restLengths8), one8);
+					__m256 forcePointFiveDt8 = _mm256_mul_ps(force8, _mm256_mul_ps(pointFive8, dt8));
+
+					// Use mask
+					forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, distanceMask);
+
+					// Start of row
+					if (pointIndex % (gridRes / 2) == 0)
+					{
+						forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, rightUpdateMask);
+					}
+
+					/*__m256 impulse_x8 = _mm256_mul_ps(dir_x8, forcePointFiveDt8);
+					__m256 impulse_y8 = _mm256_mul_ps(dir_y8, forcePointFiveDt8);
+					__m256 impulse_z8 = _mm256_mul_ps(dir_z8, forcePointFiveDt8);*/
+
+					// Update current positions
+					currentPos_x8 = _mm256_fmadd_ps(dir_x8, forcePointFiveDt8, currentPos_x8);
+					currentPos_y8 = _mm256_fmadd_ps(dir_y8, forcePointFiveDt8, currentPos_y8);
+					currentPos_z8 = _mm256_fmadd_ps(dir_z8, forcePointFiveDt8, currentPos_z8);
+
+					/*currentPos_x8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_x8);
+					currentPos_y8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_y8);
+					currentPos_z8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_z8);*/
+
+					// Update neighbors
+					_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(dir_x8, forcePointFiveDt8, neighbor_x8));
+					_mm256_store_ps(neighbor_y, _mm256_fnmadd_ps(dir_y8, forcePointFiveDt8, neighbor_y8));
+					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(dir_z8, forcePointFiveDt8, neighbor_z8));
+
+					/*_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_x8));
+					_mm256_store_ps(neighbor_y, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_y8));
+					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_z8));*/
+				}
+
+				// Update positions
+				_mm256_store_ps(pos_x, currentPos_x8);
+				_mm256_store_ps(pos_y, currentPos_y8);
+				_mm256_store_ps(pos_z, currentPos_z8);
+			}
+
+			// Odd points
+			pointIndex = gridRes / 2;
+			pos_x = &VertexPosOdd_x[pointIndex];
+			pos_y = &VertexPosOdd_y[pointIndex];
+			pos_z = &VertexPosOdd_z[pointIndex];
+			end = pos_x + gridRes * gridRes / 2 - gridRes / 2;
+			//end = &VertexPosOdd_x[VertexPosEven_x.size() - 1];		// Skips final row
+
+			for (pos_x; pos_x < end; pos_x += 8, pos_y += 8, pos_z += 8, pointIndex += 8)
+			{
+				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+				__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+
+				// Update for all neighbors
+				for (int linknr = 0; linknr < 4; linknr++)
+				{
+					float* neighbor_x;
+					float* neighbor_y;
+					float* neighbor_z;
+
+					// Right Neighbor
+					if (linknr == 0)
+					{
+						neighbor_x = &VertexPosEven_x[pointIndex + 1];
+						neighbor_y = &VertexPosEven_y[pointIndex + 1];
+						neighbor_z = &VertexPosEven_z[pointIndex + 1];
+					}
+					// Left Neighbor
+					else if (linknr == 1)
+					{
+						neighbor_x = &VertexPosEven_x[pointIndex];
+						neighbor_y = &VertexPosEven_y[pointIndex];
+						neighbor_z = &VertexPosEven_z[pointIndex];
+					}
+					// Up/Down Neighbors
+					else
+					{
+						neighbor_x = pos_x + neighborOffsets[linknr];
+						neighbor_y = pos_y + neighborOffsets[linknr];
+						neighbor_z = pos_z + neighborOffsets[linknr];
+					}
+
+					// Calculate distance
+					__m256 neighbor_x8 = _mm256_load_ps(neighbor_x);
+					__m256 neighbor_y8 = _mm256_load_ps(neighbor_y);
+					__m256 neighbor_z8 = _mm256_load_ps(neighbor_z);
+
+					__m256 dir_x8 = _mm256_sub_ps(neighbor_x8, currentPos_x8);
+					__m256 dir_y8 = _mm256_sub_ps(neighbor_y8, currentPos_y8);
+					__m256 dir_z8 = _mm256_sub_ps(neighbor_z8, currentPos_z8);
+
+					__m256 distance8 = _mm256_sqrt_ps(_mm256_add_ps(_mm256_mul_ps(dir_x8, dir_x8), _mm256_add_ps(_mm256_mul_ps(dir_y8, dir_y8), _mm256_mul_ps(dir_z8, dir_z8))));
+
+					// Retrieve rest lengths
+					/*__m256 restLengths8 = _mm256_setr_ps(
+						restLengthsSIMD[restMapSIMD.at(pointIndex)][linknr], restLengthsSIMD[restMapSIMD.at(pointIndex + 2)][linknr],
+						restLengthsSIMD[restMapSIMD.at(pointIndex + 4)][linknr], restLengthsSIMD[restMapSIMD.at(pointIndex + 6)][linknr],
+						restLengthsSIMD[restMapSIMD.at(pointIndex + 8)][linknr], restLengthsSIMD[restMapSIMD.at(pointIndex + 10)][linknr],
+						restLengthsSIMD[restMapSIMD.at(pointIndex + 12)][linknr], restLengthsSIMD[restMapSIMD.at(pointIndex + 14)][linknr]
+					);*/
+					//// Retrieve rest lengths
+					//__m256 restLengths8 = _mm256_setr_ps(
+					//	restLengthsSIMD[pointIndex * 2 + 1][linknr], restLengthsSIMD[(pointIndex + 1) * 2 + 1][linknr],
+					//	restLengthsSIMD[(pointIndex + 2) * 2 + 1][linknr], restLengthsSIMD[(pointIndex + 3) * 2 + 1][linknr],
+					//	restLengthsSIMD[(pointIndex + 4) * 2 + 1][linknr], restLengthsSIMD[(pointIndex + 5) * 2 + 1][linknr],
+					//	restLengthsSIMD[(pointIndex + 6) * 2 + 1][linknr], restLengthsSIMD[(pointIndex + 7) * 2 + 1][linknr]
+					//);
+					// Retrieve rest lengths
+					__m256 restLengths8 = _mm256_setr_ps(
+						restLengthsOdd[pointIndex][linknr], restLengthsOdd[pointIndex + 1][linknr],
+						restLengthsOdd[pointIndex + 2][linknr], restLengthsOdd[pointIndex + 3][linknr],
+						restLengthsOdd[pointIndex + 4][linknr], restLengthsOdd[pointIndex + 5][linknr],
+						restLengthsOdd[pointIndex + 6][linknr], restLengthsOdd[pointIndex + 7][linknr]
+					);
+
+					__m256 distanceMask = _mm256_cmp_ps(distance8, restLengths8, _CMP_GT_OQ);
+
+					__m256 force8 = _mm256_sub_ps(_mm256_div_ps(distance8, restLengths8), one8);
+					__m256 forcePointFiveDt8 = _mm256_mul_ps(force8, _mm256_mul_ps(pointFive8, dt8));
+
+					// Use mask
+					forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, distanceMask);
+
+					// End of row
+					if ((gridRes / 2) - 8 == 0 || pointIndex % ( (gridRes / 2) - 8 ) == 0)
+					{
+						forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, leftUpdateMask);
+					}
+
+					/*__m256 impulse_x8 = _mm256_mul_ps(dir_x8, forcePointFiveDt8);
+					__m256 impulse_y8 = _mm256_mul_ps(dir_y8, forcePointFiveDt8);
+					__m256 impulse_z8 = _mm256_mul_ps(dir_z8, forcePointFiveDt8);*/
+
+					// Update current positions
+					/*currentPos_x8 = _mm256_fmadd_ps(dir_x8, forcePointFiveDt8, currentPos_x8);
+					currentPos_y8 = _mm256_fmadd_ps(dir_y8, forcePointFiveDt8, currentPos_y8);
+					currentPos_z8 = _mm256_fmadd_ps(dir_z8, forcePointFiveDt8, currentPos_z8);*/
+
+					currentPos_x8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_x8);
+					currentPos_y8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_y8);
+					currentPos_z8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_z8);
+
+					// Update neighbors
+					/*_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(dir_x8, forcePointFiveDt8, neighbor_x8));
+					_mm256_store_ps(neighbor_y, _mm256_fnmadd_ps(dir_y8, forcePointFiveDt8, neighbor_y8));
+					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(dir_z8, forcePointFiveDt8, neighbor_z8));*/
+
+					_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_x8));
+					_mm256_store_ps(neighbor_y, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_y8));
+					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_z8));
+				}
+
+				// Update positions
+				_mm256_store_ps(pos_x, currentPos_x8);
+				_mm256_store_ps(pos_y, currentPos_y8);
+				_mm256_store_ps(pos_z, currentPos_z8);
+			}
+
+			CopyFromSIMD();
+
+			// Fixed vertices
+			for (int x = 0; x < gridRes; x++)
+				vertices[x].pos = fixedVertices[x].pos;
+			
+			return;
+#endif // SIMD
 
 			for (int y = 1; y < gridRes - 1; y++)
 				for (int x = 1; x < gridRes - 1; x++)
