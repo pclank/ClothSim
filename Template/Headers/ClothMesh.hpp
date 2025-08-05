@@ -248,7 +248,7 @@ struct ClothMesh {
 
 				for (size_t anchor = 0; anchor < gridRes; anchor++)
 				{
-					float currentLength = glm::length(fixedVertices[anchor].pos - vertices[x + y * gridRes].pos);
+					float currentLength = glm::length(fixedVertices[anchor].pos - vertices[x + y * gridRes].pos) * slack;
 					if (currentLength < minLength)
 					{
 						minLength = currentLength;
