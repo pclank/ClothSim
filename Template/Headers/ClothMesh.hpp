@@ -479,19 +479,14 @@ struct ClothMesh {
 
 		const __m256 dt8 = _mm256_set1_ps(dt);
 
-		// TODO: Should be moved to Simulate(), so that it only happens once
-		//CopyToSIMD();
-
-		// TODO: Skip first row!
-
 		// Even points
-		float* pos_x = VertexPosEven_x.data();
-		float* pos_y = VertexPosEven_y.data();
-		float* pos_z = VertexPosEven_z.data();
-		float* prevPos_x = VertexPrevEven_x.data();
-		float* prevPos_y = VertexPrevEven_y.data();
-		float* prevPos_z = VertexPrevEven_z.data();
-		float* end = pos_x + gridRes * gridRes / 2;
+		float* pos_x = &VertexPosEven_x[gridRes / 2];
+		float* pos_y = &VertexPosEven_y[gridRes / 2];
+		float* pos_z = &VertexPosEven_z[gridRes / 2];
+		float* prevPos_x = &VertexPrevEven_x[gridRes / 2];
+		float* prevPos_y = &VertexPrevEven_y[gridRes / 2];
+		float* prevPos_z = &VertexPrevEven_z[gridRes / 2];
+		float* end = pos_x + (gridRes - 1) * gridRes / 2;
 
 		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
 		{
@@ -518,13 +513,13 @@ struct ClothMesh {
 		}
 
 		// Odd points
-		pos_x = VertexPosOdd_x.data();
-		pos_y = VertexPosOdd_y.data();
-		pos_z = VertexPosOdd_z.data();
-		prevPos_x = VertexPrevOdd_x.data();
-		prevPos_y = VertexPrevOdd_y.data();
-		prevPos_z = VertexPrevOdd_z.data();
-		end = pos_x + gridRes * gridRes / 2;
+		pos_x = &VertexPosOdd_x[gridRes / 2];
+		pos_y = &VertexPosOdd_y[gridRes / 2];
+		pos_z = &VertexPosOdd_z[gridRes / 2];
+		prevPos_x = &VertexPrevOdd_x[gridRes / 2];
+		prevPos_y = &VertexPrevOdd_y[gridRes / 2];
+		prevPos_z = &VertexPrevOdd_z[gridRes / 2];
+		end = pos_x + (gridRes - 1) * gridRes / 2;
 
 		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
 		{
@@ -549,9 +544,6 @@ struct ClothMesh {
 			_mm256_store_ps(prevPos_y, currentPos_y8);
 			_mm256_store_ps(prevPos_z, currentPos_z8);
 		}
-
-		// TODO: Should be moved to Simulate(), so that it only happens once
-		//CopyFromSIMD();
 
 		return;
 
@@ -1107,17 +1099,14 @@ struct ClothMesh {
 
 		const __m256 dt8 = _mm256_set1_ps(dt);
 
-		// TODO: Should be moved to Simulate(), so that it only happens once
-		//CopyToSIMD();
-
 		// Even points
-		float* pos_x = VertexPosEven_x.data();
-		float* pos_y = VertexPosEven_y.data();
-		float* pos_z = VertexPosEven_z.data();
-		float* prevPos_x = VertexPrevEven_x.data();
-		float* prevPos_y = VertexPrevEven_y.data();
-		float* prevPos_z = VertexPrevEven_z.data();
-		float* end = pos_x + gridRes * gridRes / 2;
+		float* pos_x = &VertexPosEven_x[gridRes / 2];
+		float* pos_y = &VertexPosEven_y[gridRes / 2];
+		float* pos_z = &VertexPosEven_z[gridRes / 2];
+		float* prevPos_x = &VertexPrevEven_x[gridRes / 2];
+		float* prevPos_y = &VertexPrevEven_y[gridRes / 2];
+		float* prevPos_z = &VertexPrevEven_z[gridRes / 2];
+		float* end = pos_x + (gridRes - 1) * gridRes / 2;
 
 		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
 		{
@@ -1150,13 +1139,13 @@ struct ClothMesh {
 		}
 
 		// Odd points
-		pos_x = VertexPosOdd_x.data();
-		pos_y = VertexPosOdd_y.data();
-		pos_z = VertexPosOdd_z.data();
-		prevPos_x = VertexPrevOdd_x.data();
-		prevPos_y = VertexPrevOdd_y.data();
-		prevPos_z = VertexPrevOdd_z.data();
-		end = pos_x + gridRes * gridRes / 2;
+		pos_x = &VertexPosOdd_x[gridRes / 2];
+		pos_y = &VertexPosOdd_y[gridRes / 2];
+		pos_z = &VertexPosOdd_z[gridRes / 2];
+		prevPos_x = &VertexPrevOdd_x[gridRes / 2];
+		prevPos_y = &VertexPrevOdd_y[gridRes / 2];
+		prevPos_z = &VertexPrevOdd_z[gridRes / 2];
+		end = pos_x + (gridRes - 1) * gridRes / 2;
 
 		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
 		{
@@ -1187,9 +1176,6 @@ struct ClothMesh {
 			_mm256_store_ps(prevPos_y, currentPos_y8);
 			_mm256_store_ps(prevPos_z, currentPos_z8);
 		}
-
-		// TODO: Should be moved to Simulate(), so that it only happens once
-		//CopyFromSIMD();
 
 		return;
 #endif // SIMD
@@ -1237,17 +1223,14 @@ struct ClothMesh {
 
 		const __m256 dt8 = _mm256_set1_ps(dt);
 
-		// TODO: Should be moved to Simulate(), so that it only happens once
-		//CopyToSIMD();
-
 		// Even points
-		float* pos_x = VertexPosEven_x.data();
-		float* pos_y = VertexPosEven_y.data();
-		float* pos_z = VertexPosEven_z.data();
-		float* prevPos_x = VertexPrevEven_x.data();
-		float* prevPos_y = VertexPrevEven_y.data();
-		float* prevPos_z = VertexPrevEven_z.data();
-		float* end = pos_x + gridRes * gridRes / 2;
+		float* pos_x = &VertexPosEven_x[gridRes / 2];
+		float* pos_y = &VertexPosEven_y[gridRes / 2];
+		float* pos_z = &VertexPosEven_z[gridRes / 2];
+		float* prevPos_x = &VertexPrevEven_x[gridRes / 2];
+		float* prevPos_y = &VertexPrevEven_y[gridRes / 2];
+		float* prevPos_z = &VertexPrevEven_z[gridRes / 2];
+		float* end = pos_x + (gridRes - 1) * gridRes / 2;
 
 		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
 		{
@@ -1280,13 +1263,13 @@ struct ClothMesh {
 		}
 
 		// Odd points
-		pos_x = VertexPosOdd_x.data();
-		pos_y = VertexPosOdd_y.data();
-		pos_z = VertexPosOdd_z.data();
-		prevPos_x = VertexPrevOdd_x.data();
-		prevPos_y = VertexPrevOdd_y.data();
-		prevPos_z = VertexPrevOdd_z.data();
-		end = pos_x + gridRes * gridRes / 2;
+		pos_x = &VertexPosOdd_x[gridRes / 2];
+		pos_y = &VertexPosOdd_y[gridRes / 2];
+		pos_z = &VertexPosOdd_z[gridRes / 2];
+		prevPos_x = &VertexPrevOdd_x[gridRes / 2];
+		prevPos_y = &VertexPrevOdd_y[gridRes / 2];
+		prevPos_z = &VertexPrevOdd_z[gridRes / 2];
+		end = pos_x + (gridRes - 1) * gridRes / 2;
 
 		for (pos_x; pos_x < end; pos_x += 8, prevPos_x += 8, pos_y += 8, prevPos_y += 8, pos_z += 8, prevPos_z += 8)
 		{
