@@ -49,9 +49,16 @@ void GUI::Render()
     TimeData time = m_timer.GetData();
     std::string label;
 
+    // FPS running average
+    static float avg = 10, alpha = 1;
+    avg = (1 - alpha) * avg + alpha * time.FPS;
+    if (alpha > 0.05f) alpha *= 0.5f;
+    float fps = avg;
+
     ImGui::Begin("Control Window");
     ImGui::Text("DeltaTime: %f", time.DeltaTime);
     ImGui::Text("FPS: %.2f", time.FPS);
+    ImGui::Text("Average FPS: %.2f", fps);
     ImGui::Text("Use SPACEBAR to enable/disable cursor!");
 
     ImGui::ColorEdit3("Base color", (float*)m_sceneSettings.base_color);
@@ -84,7 +91,7 @@ void GUI::Render()
     std::string strTranslation = std::string("Cloth translation");
     std::string strScale = std::string("Cloth scaling");
     ImGui::Checkbox(strEnabled.c_str(), &clothSettings.enabled);
-    ImGui::SliderFloat3(strTranslation.c_str(), clothSettings.translation, -10.0f, 10.0f);
+    ImGui::SliderFloat3(strTranslation.c_str(), clothSettings.translation, -50.0f, 50.0f);
     ImGui::SliderFloat3(strScale.c_str(), clothSettings.scale, 0.001f, 2.0f);
 
     ImGui::Separator();
