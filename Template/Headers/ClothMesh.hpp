@@ -67,8 +67,8 @@ struct ClothMesh {
 #ifdef ANCHORS
 	std::vector<float> anchorLengthsEven;
 	std::vector<float> anchorLengthsOdd;
-	std::vector<unsigned int> anchorIndicesEven;
-	std::vector<unsigned int> anchorIndicesOdd;
+	std::vector<float> anchorPosEven_x, anchorPosEven_y, anchorPosEven_z;
+	std::vector<float> anchorPosOdd_x, anchorPosOdd_y, anchorPosOdd_z;
 #endif // ANCHORS
 
 	std::array<int, 4> neighborOffsets;
@@ -270,31 +270,44 @@ struct ClothMesh {
 #ifdef SIMD
 #ifdef ANCHORS
 
-		//anchorLengthsEven.resize(gridRes * (gridRes - 1) / 2);
-		//anchorIndicesEven.resize(gridRes * (gridRes - 1) / 2);
-		//anchorLengthsOdd.resize(gridRes * (gridRes - 1) / 2);
-		//anchorIndicesOdd.resize(gridRes * (gridRes - 1) / 2);
+		anchorLengthsEven.resize(gridRes * (gridRes - 1) / 2);
+		anchorLengthsOdd.resize(gridRes * (gridRes - 1) / 2);
 
-		//for (size_t y = 1; y < gridRes; y++)
-		//	for (size_t x = 0; x < gridRes; x++)
-		//	{
-		//		size_t index = x + y * gridRes;
+		anchorPosEven_x.resize(gridRes * (gridRes - 1) / 2);
+		anchorPosEven_y.resize(gridRes * (gridRes - 1) / 2);
+		anchorPosEven_z.resize(gridRes * (gridRes - 1) / 2);
+		anchorPosOdd_x.resize(gridRes * (gridRes - 1) / 2);
+		anchorPosOdd_y.resize(gridRes * (gridRes - 1) / 2);
+		anchorPosOdd_z.resize(gridRes * (gridRes - 1) / 2);
 
-		//		unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
+		vertexIndex = 0;
+		for (size_t y = 1; y < gridRes; y++)
+			for (size_t x = 0; x < gridRes; x++)
+			{
+				size_t index = x + y * gridRes;
 
-		//		// Even vertices
-		//		if (index % 2 == 0)
-		//		{
-		//			anchorLengthsEven[index / 2] = anchorLengths[anchorIndex];
-		//			anchorIndicesEven[index / 2] = anchorIndex;
-		//		}
-		//		// Odd vertices
-		//		else
-		//		{
-		//			anchorLengthsOdd[(index - 1) / 2] = anchorLengths[anchorIndex];
-		//			anchorIndicesOdd[(index - 1) / 2] = anchorIndex;
-		//		}
-		//	}
+				unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
+				index -= gridRes;
+
+				// Even vertices
+				if (index % 2 == 0)
+				{
+					anchorLengthsEven[index / 2] = anchorLengths[anchorIndex];
+					anchorPosEven_x[index / 2] = fixedVertices[anchorIndices[anchorIndex]].pos.x;
+					anchorPosEven_y[index / 2] = fixedVertices[anchorIndices[anchorIndex]].pos.y;
+					anchorPosEven_z[index / 2] = fixedVertices[anchorIndices[anchorIndex]].pos.z;
+				}
+				// Odd vertices
+				else
+				{
+					anchorLengthsOdd[(index - 1) / 2] = anchorLengths[anchorIndex];
+					anchorPosOdd_x[(index - 1) / 2] = fixedVertices[anchorIndices[anchorIndex]].pos.x;
+					anchorPosOdd_y[(index - 1) / 2] = fixedVertices[anchorIndices[anchorIndex]].pos.y;
+					anchorPosOdd_z[(index - 1) / 2] = fixedVertices[anchorIndices[anchorIndex]].pos.z;
+				}
+
+				vertexIndex++;
+			}
 
 #endif // ANCHORS
 #endif // SIMD
@@ -629,6 +642,7 @@ struct ClothMesh {
 #ifdef SIMD
 		static const __m256 one8 = _mm256_set1_ps(1.0f);
 		static const __m256 zero8 = _mm256_set1_ps(0.0f);
+		static const __m256 minusZero = _mm256_set1_ps(-0.0f);			// Used for abs value hack!!!
 		static const __m256 pointFive8 = _mm256_set1_ps(0.5f);
 		static const __m256 rightUpdateMask = _mm256_setr_ps(0, 1, 1, 1, 1, 1, 1, 1);
 		static const __m256 leftUpdateMask = _mm256_setr_ps(1, 1, 1, 1, 1, 1, 1, 0);
@@ -891,7 +905,117 @@ struct ClothMesh {
 				_mm256_store_ps(pos_y, _mm256_load_ps(fixedPos_y));
 				_mm256_store_ps(pos_z, _mm256_load_ps(fixedPos_z));
 			}
-			
+
+#ifdef ANCHORS
+			pointIndex = gridRes / 2;	// Skips first row
+
+			// Even points
+			pos_x = &VertexPosEven_x[pointIndex];
+			pos_y = &VertexPosEven_y[pointIndex];
+			pos_z = &VertexPosEven_z[pointIndex];
+			float* anchorPos_x = anchorPosEven_x.data();
+			float* anchorPos_y = anchorPosEven_y.data();
+			float* anchorPos_z = anchorPosEven_z.data();
+			float* anchorLength = anchorLengthsEven.data();
+			endIndex = VertexPosEven_x.size() - 8;
+			end = &VertexPosEven_x[endIndex];
+
+			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, anchorPos_x += 8, anchorPos_y += 8, anchorPos_z += 8, pointIndex += 8)
+			{
+				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+				__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+
+				__m256 anchorPos_x8 = _mm256_load_ps(anchorPos_x);
+				__m256 anchorPos_y8 = _mm256_load_ps(anchorPos_y);
+				__m256 anchorPos_z8 = _mm256_load_ps(anchorPos_z);
+
+				__m256 anchorLength8 = _mm256_load_ps(anchorLength);
+
+				__m256 dir_x8 = _mm256_sub_ps(anchorPos_x8, currentPos_x8);
+				__m256 dir_y8 = _mm256_sub_ps(anchorPos_y8, currentPos_y8);
+				__m256 dir_z8 = _mm256_sub_ps(anchorPos_z8, currentPos_z8);
+
+				__m256 distance8 = _mm256_sqrt_ps(_mm256_add_ps(_mm256_mul_ps(dir_x8, dir_x8), _mm256_add_ps(_mm256_mul_ps(dir_y8, dir_y8), _mm256_mul_ps(dir_z8, dir_z8))));
+
+				__m256 distanceMask = _mm256_cmp_ps(distance8, anchorLength8, _CMP_GT_OQ);
+				
+				// TODO: Could technically move the subtraction on top of the mask calculation!
+				__m256 delta8 = _mm256_andnot_ps(minusZero, _mm256_sub_ps(distance8, anchorLength8));		// Absolute value hack!
+				//__m256 delta8 = _mm256_sub_ps(distance8, anchorLength8);		// Absolute value hack!
+				//__m256 deltaAbs8 = _mm256_andnot_ps(minusZero, delta8);
+
+				__m256 distanceVector_x8 = _mm256_div_ps(dir_x8, distance8);
+				__m256 distanceVector_y8 = _mm256_div_ps(dir_y8, distance8);
+				__m256 distanceVector_z8 = _mm256_div_ps(dir_z8, distance8);
+
+				// Apply mask
+				delta8 = _mm256_and_ps(delta8, distanceMask);
+
+				currentPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_mul_ps(distanceVector_x8, delta8));
+				currentPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_mul_ps(distanceVector_y8, delta8));
+				currentPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_mul_ps(distanceVector_z8, delta8));
+
+				_mm256_store_ps(pos_x, currentPos_x8);
+				_mm256_store_ps(pos_y, currentPos_y8);
+				_mm256_store_ps(pos_z, currentPos_z8);
+			}
+
+			// Odd points
+			pointIndex = gridRes / 2;	// Skips first row
+
+			pos_x = &VertexPosOdd_x[pointIndex];
+			pos_y = &VertexPosOdd_y[pointIndex];
+			pos_z = &VertexPosOdd_z[pointIndex];
+			anchorPos_x = anchorPosOdd_x.data();
+			anchorPos_y = anchorPosOdd_y.data();
+			anchorPos_z = anchorPosOdd_z.data();
+			anchorLength = anchorLengthsOdd.data();
+			endIndex = VertexPosOdd_x.size() - 8;
+			end = &VertexPosOdd_x[endIndex];
+
+			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, anchorPos_x += 8, anchorPos_y += 8, anchorPos_z += 8, pointIndex += 8)
+			{
+				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
+				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
+				__m256 currentPos_z8 = _mm256_load_ps(pos_z);
+
+				__m256 anchorPos_x8 = _mm256_load_ps(anchorPos_x);
+				__m256 anchorPos_y8 = _mm256_load_ps(anchorPos_y);
+				__m256 anchorPos_z8 = _mm256_load_ps(anchorPos_z);
+
+				__m256 anchorLength8 = _mm256_load_ps(anchorLength);
+
+				__m256 dir_x8 = _mm256_sub_ps(anchorPos_x8, currentPos_x8);
+				__m256 dir_y8 = _mm256_sub_ps(anchorPos_y8, currentPos_y8);
+				__m256 dir_z8 = _mm256_sub_ps(anchorPos_z8, currentPos_z8);
+
+				__m256 distance8 = _mm256_sqrt_ps(_mm256_add_ps(_mm256_mul_ps(dir_x8, dir_x8), _mm256_add_ps(_mm256_mul_ps(dir_y8, dir_y8), _mm256_mul_ps(dir_z8, dir_z8))));
+
+				__m256 distanceMask = _mm256_cmp_ps(distance8, anchorLength8, _CMP_GT_OQ);
+
+				// TODO: Could technically move the subtraction on top of the mask calculation!
+				__m256 delta8 = _mm256_andnot_ps(minusZero, _mm256_sub_ps(distance8, anchorLength8));		// Absolute value hack!
+				//__m256 delta8 = _mm256_sub_ps(distance8, anchorLength8);		// Absolute value hack!
+				//__m256 deltaAbs8 = _mm256_andnot_ps(minusZero, delta8);
+
+				__m256 distanceVector_x8 = _mm256_div_ps(dir_x8, distance8);
+				__m256 distanceVector_y8 = _mm256_div_ps(dir_y8, distance8);
+				__m256 distanceVector_z8 = _mm256_div_ps(dir_z8, distance8);
+
+				// Apply mask
+				delta8 = _mm256_and_ps(delta8, distanceMask);
+
+				currentPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_mul_ps(distanceVector_x8, delta8));
+				currentPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_mul_ps(distanceVector_y8, delta8));
+				currentPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_mul_ps(distanceVector_z8, delta8));
+
+				_mm256_store_ps(pos_x, currentPos_x8);
+				_mm256_store_ps(pos_y, currentPos_y8);
+				_mm256_store_ps(pos_z, currentPos_z8);
+			}
+#endif // ANCHORS
+
 			return;
 #endif // SIMD
 
