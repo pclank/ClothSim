@@ -83,7 +83,7 @@ struct ClothMesh {
 		width(width), depth(depth), gridRes(gridRes)
 	{
 #ifdef SIMD
-		if (gridRes * gridRes % 8 != 0)
+		if (gridRes * gridRes % 16 != 0)
 			std::runtime_error("ERROR::AVX is enabled, but size was not a power of 8!");
 
 		neighborOffsets[0] = 1;
@@ -651,10 +651,10 @@ struct ClothMesh {
 			float* pos_x = &VertexPosEven_x[pointIndex];
 			float* pos_y = &VertexPosEven_y[pointIndex];
 			float* pos_z = &VertexPosEven_z[pointIndex];
-			float* end = pos_x + gridRes * gridRes / 2 - gridRes / 2;
-			//float* end = &VertexPosEven_x[VertexPosEven_x.size() - 1];		// Skips final row
+			int endIndex = VertexPosEven_x.size() - (gridRes/2) - 8;
+			float* end = &VertexPosEven_x[endIndex];
 
-			for (pos_x; pos_x < end; pos_x += 8, pos_y += 8, pos_z += 8, pointIndex += 8)
+			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, pointIndex += 8)
 			{
 				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
 				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
@@ -732,6 +732,7 @@ struct ClothMesh {
 
 					// Start of row
 					if (pointIndex % (gridRes / 2) == 0)
+					//if (pointIndex % 128 == 0)
 					{
 						forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, rightUpdateMask);
 					}
@@ -770,10 +771,9 @@ struct ClothMesh {
 			pos_x = &VertexPosOdd_x[pointIndex];
 			pos_y = &VertexPosOdd_y[pointIndex];
 			pos_z = &VertexPosOdd_z[pointIndex];
-			end = pos_x + gridRes * gridRes / 2 - gridRes / 2;
-			//end = &VertexPosOdd_x[VertexPosEven_x.size() - 1];		// Skips final row
+			end = &VertexPosOdd_x[endIndex];
 
-			for (pos_x; pos_x < end; pos_x += 8, pos_y += 8, pos_z += 8, pointIndex += 8)
+			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, pointIndex += 8)
 			{
 				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
 				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
@@ -850,7 +850,7 @@ struct ClothMesh {
 					forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, distanceMask);
 
 					// End of row
-					if ((gridRes / 2) - 8 == 0 || pointIndex % ( (gridRes / 2) - 8 ) == 0)
+					if (gridRes / 2 == 8|| pointIndex % ((gridRes / 2) - 8) == 0)
 					{
 						forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, leftUpdateMask);
 					}
@@ -860,22 +860,22 @@ struct ClothMesh {
 					__m256 impulse_z8 = _mm256_mul_ps(dir_z8, forcePointFiveDt8);*/
 
 					// Update current positions
-					/*currentPos_x8 = _mm256_fmadd_ps(dir_x8, forcePointFiveDt8, currentPos_x8);
+					currentPos_x8 = _mm256_fmadd_ps(dir_x8, forcePointFiveDt8, currentPos_x8);
 					currentPos_y8 = _mm256_fmadd_ps(dir_y8, forcePointFiveDt8, currentPos_y8);
-					currentPos_z8 = _mm256_fmadd_ps(dir_z8, forcePointFiveDt8, currentPos_z8);*/
+					currentPos_z8 = _mm256_fmadd_ps(dir_z8, forcePointFiveDt8, currentPos_z8);
 
-					currentPos_x8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_x8);
+					/*currentPos_x8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_x8);
 					currentPos_y8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_y8);
-					currentPos_z8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_z8);
+					currentPos_z8 = _mm256_fmadd_ps(zero8, forcePointFiveDt8, currentPos_z8);*/
 
 					// Update neighbors
-					/*_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(dir_x8, forcePointFiveDt8, neighbor_x8));
+					_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(dir_x8, forcePointFiveDt8, neighbor_x8));
 					_mm256_store_ps(neighbor_y, _mm256_fnmadd_ps(dir_y8, forcePointFiveDt8, neighbor_y8));
-					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(dir_z8, forcePointFiveDt8, neighbor_z8));*/
+					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(dir_z8, forcePointFiveDt8, neighbor_z8));
 
-					_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_x8));
+					/*_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_x8));
 					_mm256_store_ps(neighbor_y, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_y8));
-					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_z8));
+					_mm256_store_ps(neighbor_z, _mm256_fnmadd_ps(zero8, forcePointFiveDt8, neighbor_z8));*/
 				}
 
 				// Update positions
