@@ -61,10 +61,8 @@ struct ClothMesh {
 	std::vector<float> VertexPrevEven_x, VertexPrevOdd_x, VertexPrevEven_y, VertexPrevOdd_y, VertexPrevEven_z, VertexPrevOdd_z;	// PrevPos
 	std::vector<float> VertexFixedEven_x, VertexFixedOdd_x, VertexFixedEven_y, VertexFixedOdd_y, VertexFixedEven_z, VertexFixedOdd_z;	// FixedPoints
 
-	std::vector<std::array<float, 4>> restLengthsSIMD;
 	std::vector<std::array<float, 4>> restLengthsEven;
 	std::vector<std::array<float, 4>> restLengthsOdd;
-	std::map<unsigned int, unsigned int> restMapSIMD;
 
 	std::array<int, 4> neighborOffsets;
 #endif // SIMD
@@ -184,12 +182,14 @@ struct ClothMesh {
 		VertexPrevOdd_y.resize(vertices.size() / 2);
 		VertexPrevOdd_z.resize(vertices.size() / 2);
 
-		VertexFixedEven_x.resize(gridRes);
-		VertexFixedEven_y.resize(gridRes);
-		VertexFixedEven_z.resize(gridRes);
-		VertexFixedOdd_x.resize(gridRes);
-		VertexFixedOdd_y.resize(gridRes);
-		VertexFixedOdd_z.resize(gridRes);
+		VertexFixedEven_x.resize(gridRes / 2);
+		VertexFixedEven_y.resize(gridRes / 2);
+		VertexFixedEven_z.resize(gridRes / 2);
+		VertexFixedOdd_x.resize(gridRes / 2);
+		VertexFixedOdd_y.resize(gridRes / 2);
+		VertexFixedOdd_z.resize(gridRes / 2);
+
+		CopyToSIMD(true);
 #endif // SIMD
 
 		/*for (size_t i = 0; i < preVertices.size(); i++)
@@ -285,7 +285,6 @@ struct ClothMesh {
 			}
 
 #ifdef SIMD
-		restLengthsSIMD.resize(gridRes * gridRes);
 		restLengthsEven.resize(gridRes * gridRes /2);
 		restLengthsOdd.resize(gridRes * gridRes / 2);
 
@@ -345,48 +344,6 @@ struct ClothMesh {
 							vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * slack;
 				}
 			}
-
-		restIndex = 0;
-		for (size_t y = 0; y < gridRes; y++)
-			for (size_t x = 0; x < gridRes; x++)
-			{
-				size_t ind = x + y * gridRes;
-				for (int c = 0; c < 4; c++)
-				{
-					// Right
-					if (c == 0 && x == gridRes - 1)
-					{
-						restLengthsSIMD[restIndex][c] = 0.0f;
-						continue;
-					}
-					// Left
-					else if (c == 1 && ind % 2 == 0 && ind % gridRes == 0)
-					{
-						restLengthsSIMD[restIndex][c] = 0.0f;
-						continue;
-					}
-					// Down
-					else if (c == 2 && y == gridRes - 1)
-					{
-						restLengthsSIMD[restIndex][c] = 0.0f;
-						continue;
-					}
-					// Up
-					else if (c == 3 && ind < gridRes)
-					{
-						restLengthsSIMD[restIndex][c] = 0.0f;
-						continue;
-					}
-
-					restLengthsSIMD[restIndex][c] = glm::length(vertices[x + y * gridRes].pos -
-						vertices[x + xOffsets[c] + (y + yOffsets[c]) * gridRes].pos) * slack;
-				}
-
-				// Add to map
-				restMapSIMD[ind] = restIndex;
-
-				restIndex++;
-			}
 #endif // SIMD
 
 		// Calculate side vertices rest lengths
@@ -422,7 +379,7 @@ struct ClothMesh {
 
 #ifdef SIMD
 
-	inline void CopyToSIMD(bool first = true)
+	inline void CopyToSIMD(bool first = false)
 	{
 		for (size_t y = 0; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
@@ -446,6 +403,10 @@ struct ClothMesh {
 						VertexPrevEven_x[index / 2] = vertices[index].pos.x;
 						VertexPrevEven_y[index / 2] = vertices[index].pos.y;
 						VertexPrevEven_z[index / 2] = vertices[index].pos.z;
+
+						VertexFixedEven_x[index / 2] = vertices[index].pos.x;
+						VertexFixedEven_y[index / 2] = vertices[index].pos.y;
+						VertexFixedEven_z[index / 2] = vertices[index].pos.z;
 					}
 				}
 				// Odd vertices
@@ -465,6 +426,10 @@ struct ClothMesh {
 						VertexPrevOdd_x[(index - 1) / 2] = vertices[index].pos.x;
 						VertexPrevOdd_y[(index - 1) / 2] = vertices[index].pos.y;
 						VertexPrevOdd_z[(index - 1) / 2] = vertices[index].pos.z;
+
+						VertexFixedOdd_x[(index - 1) / 2] = vertices[index].pos.x;
+						VertexFixedOdd_y[(index - 1) / 2] = vertices[index].pos.y;
+						VertexFixedOdd_z[(index - 1) / 2] = vertices[index].pos.z;
 					}
 				}
 			}
@@ -515,7 +480,9 @@ struct ClothMesh {
 		const __m256 dt8 = _mm256_set1_ps(dt);
 
 		// TODO: Should be moved to Simulate(), so that it only happens once
-		CopyToSIMD();
+		//CopyToSIMD();
+
+		// TODO: Skip first row!
 
 		// Even points
 		float* pos_x = VertexPosEven_x.data();
@@ -584,7 +551,7 @@ struct ClothMesh {
 		}
 
 		// TODO: Should be moved to Simulate(), so that it only happens once
-		CopyFromSIMD();
+		//CopyFromSIMD();
 
 		return;
 
@@ -642,7 +609,7 @@ struct ClothMesh {
 		{
 
 #ifdef SIMD
-			CopyToSIMD();
+			//CopyToSIMD();
 
 			// TODO: Pointer should be ignoring the first row of vertices (they are fixed)!
 
@@ -777,6 +744,7 @@ struct ClothMesh {
 					float* neighbor_z;
 
 					// Final row skip down neighbor
+					// TODO: May be incorrect!
 					if (pointIndex > VertexPosOdd_x.size() - (gridRes / 2) - 8 && linknr == 2)
 					{
 						continue;
@@ -863,11 +831,41 @@ struct ClothMesh {
 				_mm256_store_ps(pos_z, currentPos_z8);
 			}
 
-			CopyFromSIMD();
+			//CopyFromSIMD();
 
-			// Fixed vertices
-			for (int x = 0; x < gridRes; x++)
-				vertices[x].pos = fixedVertices[x].pos;
+			// Fixed even points
+			pos_x = VertexPosEven_x.data();
+			pos_y = VertexPosEven_y.data();
+			pos_z = VertexPosEven_z.data();
+			float* fixedPos_x = VertexFixedEven_x.data();
+			float* fixedPos_y = VertexFixedEven_y.data();
+			float* fixedPos_z = VertexFixedEven_z.data();
+			endIndex = VertexFixedEven_x.size() - 8;
+			end = &VertexFixedEven_x[endIndex];
+
+			for (pos_x; fixedPos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, fixedPos_x += 8, fixedPos_y += 8, fixedPos_z += 8)
+			{
+				_mm256_store_ps(pos_x, _mm256_load_ps(fixedPos_x));
+				_mm256_store_ps(pos_y, _mm256_load_ps(fixedPos_y));
+				_mm256_store_ps(pos_z, _mm256_load_ps(fixedPos_z));
+			}
+
+			// Fixed odd points
+			pos_x = VertexPosOdd_x.data();
+			pos_y = VertexPosOdd_y.data();
+			pos_z = VertexPosOdd_z.data();
+			fixedPos_x = VertexFixedOdd_x.data();
+			fixedPos_y = VertexFixedOdd_y.data();
+			fixedPos_z = VertexFixedOdd_z.data();
+			endIndex = VertexFixedOdd_x.size() - 8;
+			end = &VertexFixedOdd_x[endIndex];
+
+			for (pos_x; fixedPos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, fixedPos_x += 8, fixedPos_y += 8, fixedPos_z += 8)
+			{
+				_mm256_store_ps(pos_x, _mm256_load_ps(fixedPos_x));
+				_mm256_store_ps(pos_y, _mm256_load_ps(fixedPos_y));
+				_mm256_store_ps(pos_z, _mm256_load_ps(fixedPos_z));
+			}
 			
 			return;
 #endif // SIMD
@@ -1110,7 +1108,7 @@ struct ClothMesh {
 		const __m256 dt8 = _mm256_set1_ps(dt);
 
 		// TODO: Should be moved to Simulate(), so that it only happens once
-		CopyToSIMD();
+		//CopyToSIMD();
 
 		// Even points
 		float* pos_x = VertexPosEven_x.data();
@@ -1191,7 +1189,7 @@ struct ClothMesh {
 		}
 
 		// TODO: Should be moved to Simulate(), so that it only happens once
-		CopyFromSIMD();
+		//CopyFromSIMD();
 
 		return;
 #endif // SIMD
@@ -1240,7 +1238,7 @@ struct ClothMesh {
 		const __m256 dt8 = _mm256_set1_ps(dt);
 
 		// TODO: Should be moved to Simulate(), so that it only happens once
-		CopyToSIMD();
+		//CopyToSIMD();
 
 		// Even points
 		float* pos_x = VertexPosEven_x.data();
@@ -1321,7 +1319,7 @@ struct ClothMesh {
 		}
 
 		// TODO: Should be moved to Simulate(), so that it only happens once
-		CopyFromSIMD();
+		//CopyFromSIMD();
 
 		return;
 #endif // SIMD
@@ -1388,6 +1386,10 @@ struct ClothMesh {
 
 	void Simulate(bool windFlag, float wind, bool dragFlag, float drag, bool useManualWind, glm::vec3 manualWindDirection, glm::mat4 modelMatrix, float dt)
 	{
+#ifdef SIMD
+		CopyToSIMD();
+#endif // SIMD
+
 		for (int step = 0; step < VERLET_STEPS; step++)
 		{
 			ApplyGravity(dt);
@@ -1404,6 +1406,10 @@ struct ClothMesh {
 
 			ApplyConstraints(dt);
 		}
+
+#ifdef SIMD
+		CopyFromSIMD();
+#endif // SIMD
 	}
 
 	void UpdateVertices(float time)
