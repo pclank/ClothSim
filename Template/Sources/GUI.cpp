@@ -91,7 +91,7 @@ void GUI::Render()
     std::string strTranslation = std::string("Cloth translation");
     std::string strScale = std::string("Cloth scaling");
     ImGui::Checkbox(strEnabled.c_str(), &clothSettings.enabled);
-    ImGui::SliderFloat3(strTranslation.c_str(), clothSettings.translation, -10.0f, 10.0f);
+    ImGui::SliderFloat3(strTranslation.c_str(), clothSettings.translation, -50.0f, 50.0f);
     ImGui::SliderFloat3(strScale.c_str(), clothSettings.scale, 0.001f, 2.0f);
 
     ImGui::Separator();

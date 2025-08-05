@@ -4,6 +4,7 @@
 #include <Sphere.hpp>
 #include <ExtraMath.hpp>
 #include <PerlinNoise.hpp>
+#include <ErrorChecks.hpp>
 #include <vector>
 #include <array>
 #include <direct.h>
@@ -734,6 +735,13 @@ struct ClothMesh {
 					currentPos_y8 = _mm256_fmadd_ps(dir_y8, forcePointFiveDt8, currentPos_y8);
 					currentPos_z8 = _mm256_fmadd_ps(dir_z8, forcePointFiveDt8, currentPos_z8);
 
+					IsInfSIMD(currentPos_x8);
+					IsInfSIMD(currentPos_y8);
+					IsInfSIMD(currentPos_z8);
+					IsNaNSIMD(currentPos_x8);
+					IsNaNSIMD(currentPos_y8);
+					IsNaNSIMD(currentPos_z8);
+
 					// Update neighbors
 					_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(dir_x8, forcePointFiveDt8, neighbor_x8));
 					_mm256_store_ps(neighbor_y, _mm256_fnmadd_ps(dir_y8, forcePointFiveDt8, neighbor_y8));
@@ -752,6 +760,8 @@ struct ClothMesh {
 			pos_y = &VertexPosOdd_y[pointIndex];
 			pos_z = &VertexPosOdd_z[pointIndex];
 			end = &VertexPosOdd_x[endIndex];
+
+			int prevEndIndex = ((gridRes / 2) - 8);
 
 			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, pointIndex += 8)
 			{
@@ -822,15 +832,24 @@ struct ClothMesh {
 					forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, distanceMask);
 
 					// End of row
-					if ((gridRes / 2 == 8|| pointIndex % ((gridRes / 2) - 8) == 0) && linknr == 0)
+					//if ((gridRes / 2 == 8 || pointIndex % ((gridRes / 2) - 8) == 0) && linknr == 0)
+					if ((gridRes / 2 == 8 || pointIndex - prevEndIndex == (gridRes / 2)) && linknr == 0)
 					{
 						forcePointFiveDt8 = _mm256_and_ps(forcePointFiveDt8, leftUpdateMask);
+						prevEndIndex = pointIndex;
 					}
 
 					// Update current positions
 					currentPos_x8 = _mm256_fmadd_ps(dir_x8, forcePointFiveDt8, currentPos_x8);
 					currentPos_y8 = _mm256_fmadd_ps(dir_y8, forcePointFiveDt8, currentPos_y8);
 					currentPos_z8 = _mm256_fmadd_ps(dir_z8, forcePointFiveDt8, currentPos_z8);
+
+					IsInfSIMD(currentPos_x8);
+					IsInfSIMD(currentPos_y8);
+					IsInfSIMD(currentPos_z8);
+					IsNaNSIMD(currentPos_x8);
+					IsNaNSIMD(currentPos_y8);
+					IsNaNSIMD(currentPos_z8);
 
 					// Update neighbors
 					_mm256_store_ps(neighbor_x, _mm256_fnmadd_ps(dir_x8, forcePointFiveDt8, neighbor_x8));
