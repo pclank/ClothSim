@@ -14,7 +14,7 @@
 #define HANDLE_BOTTOM_CORNERS
 
 //#define CROSS_LENGTHS
-//#define ANCHORS
+#define ANCHORS
 //#define PERLIN_NOISE
 #define SIMD
 
@@ -63,6 +63,13 @@ struct ClothMesh {
 
 	std::vector<std::array<float, 4>> restLengthsEven;
 	std::vector<std::array<float, 4>> restLengthsOdd;
+
+#ifdef ANCHORS
+	std::vector<float> anchorLengthsEven;
+	std::vector<float> anchorLengthsOdd;
+	std::vector<unsigned int> anchorIndicesEven;
+	std::vector<unsigned int> anchorIndicesOdd;
+#endif // ANCHORS
 
 	std::array<int, 4> neighborOffsets;
 #endif // SIMD
@@ -259,6 +266,38 @@ struct ClothMesh {
 			}
 
 #endif // ANCHORS
+
+#ifdef SIMD
+#ifdef ANCHORS
+
+		//anchorLengthsEven.resize(gridRes * (gridRes - 1) / 2);
+		//anchorIndicesEven.resize(gridRes * (gridRes - 1) / 2);
+		//anchorLengthsOdd.resize(gridRes * (gridRes - 1) / 2);
+		//anchorIndicesOdd.resize(gridRes * (gridRes - 1) / 2);
+
+		//for (size_t y = 1; y < gridRes; y++)
+		//	for (size_t x = 0; x < gridRes; x++)
+		//	{
+		//		size_t index = x + y * gridRes;
+
+		//		unsigned int anchorIndex = vertexAnchorMap.at(x + y * gridRes);
+
+		//		// Even vertices
+		//		if (index % 2 == 0)
+		//		{
+		//			anchorLengthsEven[index / 2] = anchorLengths[anchorIndex];
+		//			anchorIndicesEven[index / 2] = anchorIndex;
+		//		}
+		//		// Odd vertices
+		//		else
+		//		{
+		//			anchorLengthsOdd[(index - 1) / 2] = anchorLengths[anchorIndex];
+		//			anchorIndicesOdd[(index - 1) / 2] = anchorIndex;
+		//		}
+		//	}
+
+#endif // ANCHORS
+#endif // SIMD
 
 		// Calculate rest length
 		restLengths.resize(vertices.size() - 4 * gridRes + 4);
