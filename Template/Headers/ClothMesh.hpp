@@ -920,7 +920,7 @@ struct ClothMesh {
 			endIndex = VertexPosEven_x.size() - 8;
 			end = &VertexPosEven_x[endIndex];
 
-			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, anchorPos_x += 8, anchorPos_y += 8, anchorPos_z += 8, pointIndex += 8)
+			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, anchorPos_x += 8, anchorPos_y += 8, anchorPos_z += 8, anchorLength += 8, pointIndex += 8)
 			{
 				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
 				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
@@ -952,9 +952,9 @@ struct ClothMesh {
 				// Apply mask
 				delta8 = _mm256_and_ps(delta8, distanceMask);
 
-				currentPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_mul_ps(distanceVector_x8, delta8));
-				currentPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_mul_ps(distanceVector_y8, delta8));
-				currentPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_mul_ps(distanceVector_z8, delta8));
+				currentPos_x8 = _mm256_fmadd_ps(distanceVector_x8, delta8, currentPos_x8);
+				currentPos_y8 = _mm256_fmadd_ps(distanceVector_y8, delta8, currentPos_y8);
+				currentPos_z8 = _mm256_fmadd_ps(distanceVector_z8, delta8, currentPos_z8);
 
 				_mm256_store_ps(pos_x, currentPos_x8);
 				_mm256_store_ps(pos_y, currentPos_y8);
@@ -974,7 +974,7 @@ struct ClothMesh {
 			endIndex = VertexPosOdd_x.size() - 8;
 			end = &VertexPosOdd_x[endIndex];
 
-			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, anchorPos_x += 8, anchorPos_y += 8, anchorPos_z += 8, pointIndex += 8)
+			for (pos_x; pos_x <= end; pos_x += 8, pos_y += 8, pos_z += 8, anchorPos_x += 8, anchorPos_y += 8, anchorPos_z += 8, anchorLength += 8, pointIndex += 8)
 			{
 				__m256 currentPos_x8 = _mm256_load_ps(pos_x);
 				__m256 currentPos_y8 = _mm256_load_ps(pos_y);
@@ -1006,9 +1006,9 @@ struct ClothMesh {
 				// Apply mask
 				delta8 = _mm256_and_ps(delta8, distanceMask);
 
-				currentPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_mul_ps(distanceVector_x8, delta8));
-				currentPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_mul_ps(distanceVector_y8, delta8));
-				currentPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_mul_ps(distanceVector_z8, delta8));
+				currentPos_x8 = _mm256_fmadd_ps(distanceVector_x8, delta8, currentPos_x8);
+				currentPos_y8 = _mm256_fmadd_ps(distanceVector_y8, delta8, currentPos_y8);
+				currentPos_z8 = _mm256_fmadd_ps(distanceVector_z8, delta8, currentPos_z8);
 
 				_mm256_store_ps(pos_x, currentPos_x8);
 				_mm256_store_ps(pos_y, currentPos_y8);
