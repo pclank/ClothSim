@@ -601,10 +601,6 @@ struct ClothMesh {
 		{
 
 #ifdef SIMD
-			//CopyToSIMD();
-
-			// TODO: Pointer should be ignoring the first row of vertices (they are fixed)!
-
 			uint32_t pointIndex = gridRes / 2;	// Skips first row
 
 			// Even points
@@ -822,8 +818,6 @@ struct ClothMesh {
 				_mm256_store_ps(pos_y, currentPos_y8);
 				_mm256_store_ps(pos_z, currentPos_z8);
 			}
-
-			//CopyFromSIMD();
 
 			// Fixed even points
 			pos_x = VertexPosEven_x.data();
@@ -1300,9 +1294,6 @@ struct ClothMesh {
 			_mm256_store_ps(prevPos_y, currentPos_y8);
 			_mm256_store_ps(prevPos_z, currentPos_z8);
 		}
-
-		// TODO: Should be moved to Simulate(), so that it only happens once
-		//CopyFromSIMD();
 
 		return;
 #endif // SIMD
