@@ -90,7 +90,7 @@ struct ClothMesh {
 	{
 #ifdef SIMD
 		if (gridRes * gridRes % 16 != 0)
-			std::runtime_error("ERROR::AVX is enabled, but size was not a power of 8!");
+			throw std::runtime_error("ERROR::AVX is enabled, but size was not a power of 16!");
 
 		neighborOffsets[0] = 1;
 		neighborOffsets[1] = -1;
@@ -1514,7 +1514,7 @@ struct ClothMesh {
 	void Collide(glm::mat4 modelMatrix, float dt)
 	{
 		// TODO: Remove hardcoded sphere!
-		Sphere sphere(glm::vec3(2.0f, 1.0f, 0.0f), 1.0f);
+		Sphere sphere(glm::vec3(4.0f, 1.0f, 0.0f), 2.0f);
 
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
@@ -1548,16 +1548,16 @@ struct ClothMesh {
 			if (dragFlag)
 				AddDrag(drag, dt);
 
-#ifdef SPHERE_COLLISION
-			Collide(modelMatrix, dt);
-#endif // SPHERE_COLLISION
-
 			ApplyConstraints(dt);
 		}
 
 #ifdef SIMD
 		CopyFromSIMD();
 #endif // SIMD
+
+#ifdef SPHERE_COLLISION
+		Collide(modelMatrix, dt);
+#endif // SPHERE_COLLISION
 	}
 
 	void UpdateVertices(float time)

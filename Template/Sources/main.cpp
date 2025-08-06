@@ -287,6 +287,11 @@ int main(int argc, char * argv[]) {
     floorChar += "\\..\\models\\floor.obj";
     AddModel(floorChar);
 
+    // Load sphere
+    std::string sphereChar(buffer);
+    sphereChar += "\\..\\models\\sphere.obj";
+    AddModel(sphereChar);
+
     // Load skybox
     std::string skyChar(buffer);
     skyChar += "\\..\\textures\\Yokohama3\\";
@@ -328,8 +333,9 @@ int main(int argc, char * argv[]) {
     //ClothMesh cloth(5.0f, 5.0f, 16, 16, 32, "clothPineapple.png");
     //ClothMesh cloth(5.0f, 5.0f, 16, 16, 32, "ku.jpg");
     //ClothMesh cloth(5.0f, 5.0f, 32, 32, 64, "ku.jpg");
-    ClothMesh cloth(5.0f, 5.0f, 32, 32, 128, "ku.jpg");
+    ClothMesh cloth(5.0f, 5.0f, 64, 64, 256, "ku.jpg");
     //ClothMesh cloth(5.0f, 5.0f, 8, 8, 16, "clothFabric.png");
+    //ClothMesh cloth(5.0f, 5.0f, 64, 64, 256, "clothFabric.png");
 
     // Seed RNGs
     srand(static_cast <unsigned> (time(0)));
@@ -338,6 +344,13 @@ int main(int argc, char * argv[]) {
     //SphereIntersectionTesting();
 
     //return true;
+
+    gui.modelSets.back().translation[0] = 4.0f;
+    gui.modelSets.back().translation[1] = 1.0f;
+    gui.modelSets.back().translation[2] = 0.0f;
+    gui.modelSets.back().scale[0] = 2.0f;
+    gui.modelSets.back().scale[1] = 2.0f;
+    gui.modelSets.back().scale[2] = 2.0f;
 
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false)
