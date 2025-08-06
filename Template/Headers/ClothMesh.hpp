@@ -15,7 +15,7 @@
 
 //#define CROSS_LENGTHS
 #define ANCHORS
-//#define PERLIN_NOISE
+#define PERLIN_NOISE
 #define SIMD
 
 #define GRAVITY 0.003f
@@ -1443,9 +1443,20 @@ struct ClothMesh {
 			__m256 windDirection_z8 = _mm256_set1_ps(windDirection.z);
 
 			// Apply wind
+
+#ifdef PERLIN_NOISE
+			//static const __m256 perlinScale8 = _mm256_set1_ps(4.0f);
+			static const __m256 ten8 = _mm256_set1_ps(10.0f);
+			static const __m256 perlinScale8 = _mm256_mul_ps(_mm256_set1_ps(cos(glfwGetTime())), ten8);
+			__m256 perlinNoise8 = _mm256_mul_ps(PerlinNoiseSIMD(currentPos_x8, currentPos_z8), perlinScale8);
+			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_add_ps(_mm256_sub_ps(currentPos_x8, prevPos_x8), _mm256_mul_ps(windDirection_x8, _mm256_mul_ps(wind8, _mm256_mul_ps(dt8, perlinNoise8)))));
+			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(windDirection_y8, _mm256_mul_ps(wind8, _mm256_mul_ps(dt8, perlinNoise8)))));
+			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_add_ps(_mm256_sub_ps(currentPos_z8, prevPos_z8), _mm256_mul_ps(windDirection_z8, _mm256_mul_ps(wind8, _mm256_mul_ps(dt8, perlinNoise8)))));
+#else
 			__m256 newPos_x8 = _mm256_add_ps(currentPos_x8, _mm256_add_ps(_mm256_sub_ps(currentPos_x8, prevPos_x8), _mm256_mul_ps(windDirection_x8, _mm256_mul_ps(wind8, dt8))));
 			__m256 newPos_y8 = _mm256_add_ps(currentPos_y8, _mm256_add_ps(_mm256_sub_ps(currentPos_y8, prevPos_y8), _mm256_mul_ps(windDirection_y8, _mm256_mul_ps(wind8, dt8))));
 			__m256 newPos_z8 = _mm256_add_ps(currentPos_z8, _mm256_add_ps(_mm256_sub_ps(currentPos_z8, prevPos_z8), _mm256_mul_ps(windDirection_z8, _mm256_mul_ps(wind8, dt8))));
+#endif // PERLIN_NOISE
 
 			// Store new
 			_mm256_store_ps(pos_x, newPos_x8);
