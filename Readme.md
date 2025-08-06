@@ -2,7 +2,8 @@
 ![Screenshot](https://i.imgur.com/1gwuWPi.png)
 
 ## Summary
-A 3D cloth simulation (currently on the CPU and not optimized). It uses classic Verlet integration.
+A 3D cloth simulation (currently on the CPU and comes with a super fast SIMD implementation). It uses classic Verlet integration.
+You can turn off SIMD by commenting out the SIMD define in the ClothMesh.hpp. Do NOT do this for a cloth of a high resolution. It's too slow.
 
 ## Getting Started
 Has a single dependency: [cmake](http://www.cmake.org/download/), which is used to generate platform-specific makefiles or project files. Start by cloning this repository, making sure to pass the `--recursive` flag to grab all the dependencies. If you forgot, then you can `git submodule update --init` instead.
