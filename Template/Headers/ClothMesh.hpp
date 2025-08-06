@@ -10,7 +10,7 @@
 #include <direct.h>
 #include <glm/glm.hpp>
 
-//#define SPHERE_COLLISION
+#define SPHERE_COLLISION
 #define HANDLE_BOTTOM_CORNERS
 
 //#define CROSS_LENGTHS
