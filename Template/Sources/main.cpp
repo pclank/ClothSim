@@ -28,6 +28,8 @@
 #include <cstdlib>
 #include <direct.h>
 
+void CursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
+void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height);
 void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 void MouseMovementCallback(GLFWwindow* window, double x_pos, double y_pos);
@@ -68,6 +70,7 @@ int main(int argc, char * argv[]) {
     glfwMakeContextCurrent(mWindow);
     glfwSetFramebufferSizeCallback(mWindow, FramebufferSizeCallback);
     glfwSetCursorPosCallback(mWindow, MouseMovementCallback);
+    glfwSetMouseButtonCallback(mWindow, MouseButtonCallback);
     gladLoadGL();
     fprintf(stderr, "OpenGL %s\n", glGetString(GL_VERSION));
 
@@ -352,6 +355,11 @@ int main(int argc, char * argv[]) {
     gui.modelSets.back().scale[1] = 2.0f;
     gui.modelSets.back().scale[2] = 2.0f;
 
+    cloth.windowWidth = mWidth;
+    cloth.windowHeight = mHeight;
+    cloth.cam = &cam;
+    cloth.guiPointer = guiPointer;
+
     // Rendering Loop
     while (glfwWindowShouldClose(mWindow) == false)
     {
@@ -491,6 +499,7 @@ void ProcessInput(GLFWwindow* window)
     if (spacebar_down && glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_RELEASE)
     {
         cam.enabled = !cam.enabled;
+        guiPointer->clicking_enabled = !guiPointer->clicking_enabled;
 
         // Enable/Disable Cursor
         if (cam.enabled)
@@ -536,6 +545,36 @@ void MouseMovementCallback(GLFWwindow* window, double x_pos, double y_pos)
         cam.RotateArcballCamera(xoffset, yoffset, mWidth, mHeight, deltaTime);
     else
         cam.RotateCamera(xoffset, yoffset);
+
+    if (guiPointer->clicking_enabled)
+    {
+        guiPointer->MousePositionUpdate(xpos, ypos);
+
+        //ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+    }
+}
+
+void CursorPositionCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    guiPointer->MousePositionUpdate(xpos, ypos);
+
+    ImGui_ImplGlfw_CursorPosCallback(window, xpos, ypos);
+}
+
+void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (!guiPointer->clicked && button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
+    {
+        std::cout << "MOUSE CLICK on x: " << guiPointer->mouse_xpos << " y: " << guiPointer->mouse_ypos << std::endl;
+        guiPointer->clicked = true;
+    }
+    else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+    {
+        std::cout << "MOUSE RELEASE on x: " << guiPointer->mouse_xpos << " y: " << guiPointer->mouse_ypos << std::endl;
+        guiPointer->clicked = false;
+    }
+
+    //ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 }
 
 void FramebufferSizeCallback(GLFWwindow* window, int width, int height)

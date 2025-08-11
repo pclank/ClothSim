@@ -16,6 +16,10 @@ void GUI::Init(size_t nModels)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
 
+    ImGuiIO& io = ImGui::GetIO();
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
     // Setup Platform/Renderer bindings
     ImGui_ImplGlfw_InitForOpenGL(p_window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
@@ -38,6 +42,10 @@ void GUI::Init(size_t nModels)
     clothSettings.scale[0] = 1.0f;
     clothSettings.scale[1] = 1.0f;
     clothSettings.scale[2] = 1.0f;
+
+    // Click force settings
+    force = 10.0f;
+    forceRadius = 1.0f;
 }
 
 void GUI::Render()
@@ -86,6 +94,7 @@ void GUI::Render()
     ImGui::Checkbox("Wind on", &m_sceneSettings.sim_wind);
     ImGui::Checkbox("Manual Wind Dir on", &m_sceneSettings.manual_wind_dir);
     ImGui::SliderFloat3("Wind Direction", m_sceneSettings.wind_dir, -1.0f, 1.0f);
+    ImGui::Checkbox("Mouse wind", &m_sceneSettings.mouse_wind);
     ImGui::Checkbox("Play", &m_sceneSettings.run_sim);
     std::string strEnabled = std::string("Cloth enabled");
     std::string strTranslation = std::string("Cloth translation");
@@ -93,6 +102,12 @@ void GUI::Render()
     ImGui::Checkbox(strEnabled.c_str(), &clothSettings.enabled);
     ImGui::SliderFloat3(strTranslation.c_str(), clothSettings.translation, -50.0f, 50.0f);
     ImGui::SliderFloat3(strScale.c_str(), clothSettings.scale, 0.001f, 2.0f);
+    ImGui::Separator();
+    ImGui::Text("Mouse force settings");
+    ImGui::Text("Mouse x: %f", mouse_xpos);
+    ImGui::Text("Mouse y: %f", mouse_ypos);
+    ImGui::SliderFloat("Force", &force, 1.0f, 40.0f, "%.1f");
+    ImGui::SliderFloat("Force Radius", &forceRadius, 0.1f, 10.0f, "%.1f");
 
     ImGui::Separator();
     ImGui::Text("Models");

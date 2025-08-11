@@ -46,6 +46,7 @@ struct SceneSettings {
     bool sim_wind = false;
     bool manual_wind_dir = true;
     float wind_dir[3] = { 1.0f, 0.0f, 1.0f };
+    bool mouse_wind = false;
 };
 
 /// <summary>
@@ -78,6 +79,10 @@ class GUI
 public:
     std::vector<ModelSettings> modelSets;
     ModelSettings customModelSettings, clothSettings;
+    bool clicked = false;
+    bool clicking_enabled = false;
+    double mouse_xpos, mouse_ypos, mouse_prev_xpos, mouse_prev_ypos;
+    float force, forceRadius;
 
     GUI(GLFWwindow* pWindow, Camera& camera, SceneSettings& sceneSettings, Timer& timer);
 
@@ -95,6 +100,19 @@ public:
     /// Perform GUI cleanup
     /// </summary>
     void Cleanup();
+
+    inline void MousePositionUpdate(double xpos, double ypos)
+    {
+        mouse_prev_xpos = mouse_xpos;
+        mouse_prev_ypos = mouse_ypos;
+        mouse_xpos = xpos;
+        mouse_ypos = ypos;
+    }
+
+    inline SceneSettings GetSceneSettings()
+    {
+        return m_sceneSettings;
+    }
 
 private:
     /// <summary>

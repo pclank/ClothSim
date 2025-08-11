@@ -9,6 +9,8 @@
 #include <array>
 #include <direct.h>
 #include <glm/glm.hpp>
+#include <Camera.hpp>
+#include <GUI.hpp>
 
 #define SPHERE_COLLISION
 #define HANDLE_BOTTOM_CORNERS
@@ -41,6 +43,9 @@ const int xOffsets[8] = { 1, -1, 0, 0, 1, -1, 1, -1 };
 const int yOffsets[8] = { 0, 0, 1, -1, 1,  1, -1, -1 };
 
 struct ClothMesh {
+	float windowWidth, windowHeight;
+	Camera* cam = nullptr;
+	GUI* guiPointer = nullptr;
 	float width, depth, widthStep, depthStep, dU, dV;
 	//std::vector<glm::vec3> vertices, preVertices, fixedVertices;
 	std::vector<SimpleVertex> vertices, preVertices, fixedVertices;
@@ -1371,9 +1376,24 @@ struct ClothMesh {
 			}
 	}
 
+	glm::vec3 CalculateMouseWind()
+	{
+		// Screen direction
+		glm::vec2 sceneDir = glm::vec2(guiPointer->mouse_xpos - guiPointer->mouse_prev_xpos, guiPointer->mouse_ypos - guiPointer->mouse_prev_ypos);
+
+		glm::vec3 worldDir = glm::vec3(sceneDir.x, cam->up.y, sceneDir.y);
+
+		return normalize(worldDir);
+	}
+
 	void AddWind(float wind, float dt, bool useManualDirection = false, glm::vec3 manualDirection = glm::vec3(0.0f))
 	{
-		const glm::vec3 windDirection = (useManualDirection) ? glm::normalize(manualDirection) : glm::normalize(Random3f(-1.0f, 1.0f));
+		//const glm::vec3 windDirection = (useManualDirection) ? glm::normalize(manualDirection) : glm::normalize(Random3f(-1.0f, 1.0f));
+
+		const glm::vec3 windDirection = (useManualDirection) ?
+			(guiPointer->GetSceneSettings().mouse_wind) ?
+			CalculateMouseWind() : glm::normalize(manualDirection) :
+			glm::normalize(Random3f(-1.0f, 1.0f));
 
 #ifdef SIMD
 		const __m256 wind8 = _mm256_set1_ps(wind);
@@ -1532,8 +1552,68 @@ struct ClothMesh {
 			}
 	}
 
+	void AddMouseForce(glm::mat4 modelMatrix, float dt)
+	{
+		const float force = guiPointer->force;
+		
+		float pos_x = (float)guiPointer->mouse_xpos / windowWidth;
+		float pos_y = (float)guiPointer->mouse_ypos / windowHeight;
+
+		// Camera plane
+		glm::vec3 right = cam->right, up = cam->up;
+		glm::vec3 C = cam->position + 1.2f * cam->front;
+		glm::vec3 p0 = C - right + up, p1 = C + right + up, p2 = C - right - up;
+
+		glm::vec3 P = p0 + pos_x * (p1 - p0) + pos_y * (p2 - p0);
+
+		// Cast to hit cloth
+		glm::vec3 dir = glm::normalize(P - cam->position);
+		int steps = 0;
+		for (float rayT = 1.0f; steps < 20; rayT += 1.0f, steps++)
+		{
+			// Collision sphere
+			glm::vec3 ctr = cam->position + dir * rayT;
+			const float rad = guiPointer->forceRadius;
+			Sphere sphere(ctr, rad);
+
+			// Check if vertices are inside sphere
+			for (size_t y = 1; y < gridRes; y++)
+				for (size_t x = 0; x < gridRes; x++)
+				{
+					glm::vec3 vertexPos = vertices[x + y * gridRes].pos;
+
+					std::pair<bool, glm::vec3> collisionData = sphere.CheckVertexCollision(vertexPos, modelMatrix);
+
+					if (collisionData.first)
+					{
+						/*vertices[x + y * gridRes].pos += (vertexPos - preVertices[x + y * gridRes].pos) + glm::normalize(collisionData.second) * dt;
+						preVertices[x + y * gridRes].pos = vertexPos;*/
+
+						glm::vec3 impulse = (vertexPos - preVertices[x + y * gridRes].pos) + dir * force * dt;
+						//glm::vec3 impulse = (vertexPos - preVertices[x + y * gridRes].pos) + glm::normalize(collisionData.second) * force * dt;
+						vertices[x + y * gridRes].pos += impulse;
+						preVertices[x + y * gridRes].pos = vertexPos;
+
+						/*std::cout << "Hit vertex " << x + y * gridRes << std::endl;
+						std::cout << impulse.x << " - " << impulse.y << " - " << impulse.z << std::endl;*/
+
+						if (IsInfVec3(vertices[x + y * gridRes].pos) || IsNaNVec3(vertices[x + y * gridRes].pos))
+						{
+							throw std::runtime_error("non-finite impulse!");
+						}
+					}
+				}
+		}
+	}
+
 	void Simulate(bool windFlag, float wind, bool dragFlag, float drag, bool useManualWind, glm::vec3 manualWindDirection, glm::mat4 modelMatrix, float dt)
 	{
+		/*if (guiPointer->clicked)
+		{
+			AddMouseForce(modelMatrix, dt);
+			guiPointer->clicked = true;
+		}*/
+
 #ifdef SIMD
 		CopyToSIMD();
 #endif // SIMD
