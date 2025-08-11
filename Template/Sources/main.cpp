@@ -546,7 +546,7 @@ void MouseMovementCallback(GLFWwindow* window, double x_pos, double y_pos)
     else
         cam.RotateCamera(xoffset, yoffset);
 
-    if (guiPointer->clicking_enabled)
+    if (guiPointer->clicking_enabled && guiPointer->clicked)
     {
         guiPointer->MousePositionUpdate(xpos, ypos);
 
