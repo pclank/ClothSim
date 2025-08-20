@@ -1546,7 +1546,8 @@ struct ClothMesh {
 
 				if (collisionData.first)
 				{
-					vertices[x + y * gridRes].pos += (currentPos - preVertices[x + y * gridRes].pos) + glm::normalize(collisionData.second) * dt;
+					//vertices[x + y * gridRes].pos += (currentPos - preVertices[x + y * gridRes].pos) + glm::normalize(collisionData.second) * dt;
+					vertices[x + y * gridRes].pos += (currentPos - preVertices[x + y * gridRes].pos) + collisionData.second * dt;
 					preVertices[x + y * gridRes].pos = currentPos;
 				}
 			}

@@ -8,6 +8,7 @@
 // **********************************************************************
 
 const float epsilon = 0.001f;
+const glm::vec3 epsilon3 = glm::vec3(epsilon);
 
 const float PI = 3.14159265358979323846264f;
 
