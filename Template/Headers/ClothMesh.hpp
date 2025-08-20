@@ -15,7 +15,7 @@
 
 //#define CROSS_LENGTHS
 #define ANCHORS
-#define PERLIN_NOISE
+//#define PERLIN_NOISE
 #define SIMD
 
 #define GRAVITY 0.003f
@@ -1514,7 +1514,7 @@ struct ClothMesh {
 	void Collide(glm::mat4 modelMatrix, float dt)
 	{
 		// TODO: Remove hardcoded sphere!
-		Sphere sphere(glm::vec3(4.0f, 1.0f, 0.0f), 2.0f);
+		Sphere sphere(glm::vec3(4.0f, 1.0f, 0.0f), 2.0f + 0.05f);
 
 		for (size_t y = 1; y < gridRes; y++)
 			for (size_t x = 0; x < gridRes; x++)
@@ -1526,7 +1526,8 @@ struct ClothMesh {
 
 				if (collisionData.first)
 				{
-					vertices[x + y * gridRes].pos += (currentPos - preVertices[x + y * gridRes].pos) + glm::normalize(collisionData.second) * dt;
+					//vertices[x + y * gridRes].pos += (currentPos - preVertices[x + y * gridRes].pos) + glm::normalize(collisionData.second) * dt;
+					vertices[x + y * gridRes].pos += (currentPos - preVertices[x + y * gridRes].pos) + collisionData.second * dt;
 					preVertices[x + y * gridRes].pos = currentPos;
 				}
 			}
